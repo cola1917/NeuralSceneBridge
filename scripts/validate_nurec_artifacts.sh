@@ -1,9 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OUTPUT_DIR="${OUTPUT_DIR:-outputs/nurec_smoke}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+ENV_FILE="${ENV_FILE:-${REPO_ROOT}/config/nurec-smoke.env}"
+
+if [[ -f "${ENV_FILE}" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "${ENV_FILE}"
+  set +a
+fi
+
+OUTPUT_DIR="${OUTPUT_DIR:-outputs/nurec_smoke}"
 OUTPUT_ABS="${REPO_ROOT}/${OUTPUT_DIR}"
 
 if [[ ! -d "${OUTPUT_ABS}" ]]; then
