@@ -8,6 +8,7 @@ VERSION="${VERSION:-v1.0-mini}"
 SCENE_NAME="${SCENE_NAME:-scene-0061}"
 STORE_TYPE="${STORE_TYPE:-itar}"
 PROFILE="${PROFILE:-separate-sensors}"
+LIDAR_MODEL_RESOLUTION="${LIDAR_MODEL_RESOLUTION:-2}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -26,4 +27,5 @@ docker run --rm \
   --scene-name "${SCENE_NAME}" \
   --store-type "${STORE_TYPE}" \
   --profile "${PROFILE}" \
+  --lidar-model-resolution "${LIDAR_MODEL_RESOLUTION}" \
   --sequence-meta

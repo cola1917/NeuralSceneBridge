@@ -29,6 +29,8 @@ RUN curl -fsSL \
     && bash /tmp/miniconda.sh -b -p "${CONDA_DIR}" \
     && rm /tmp/miniconda.sh \
     && conda config --system --set auto_update_conda false \
+    && conda config --system --remove channels defaults \
+    && conda config --system --add channels conda-forge \
     && conda clean -afy
 
 COPY environment/ncore-converter.yml /tmp/ncore-converter.yml

@@ -35,7 +35,7 @@ from ncore.impl.common.transformations import HalfClosedInterval, MotionCompensa
 from ncore.impl.data.types import (
     BBox3,
     CuboidTrackObservation,
-    IdealPinholeCameraModelParameters,
+    OpenCVPinholeCameraModelParameters,
     LabelSource,
     RowOffsetStructuredSpinningLidarModelParameters,
     ShutterType,
@@ -693,17 +693,21 @@ class NuScenesConverter4(FileBasedDataConverter):
             height = int(cam_sweep_data[0]["height"])
 
             # Store camera intrinsics
-            # nuScenes images are undistorted, so an ideal (distortion-free) pinhole is used.
+            # nuScenes images are undistorted. Use the OpenCV pinhole model with
+            # zero distortion coefficients for compatibility with NuRec 26.04.
             # ShutterType.GLOBAL: nuScenes provides a single capture timestamp per image
             # with no rolling-shutter metadata available.
             intrinsics_writer.store_camera_intrinsics(
                 camera_id=ncore_cam_id,
-                camera_model_parameters=IdealPinholeCameraModelParameters(
+                camera_model_parameters=OpenCVPinholeCameraModelParameters(
                     resolution=np.array([width, height], dtype=np.uint64),
                     shutter_type=ShutterType.GLOBAL,
                     external_distortion_parameters=None,
                     principal_point=np.array([I_cam[0, 2], I_cam[1, 2]], dtype=np.float32),
                     focal_length=np.array([I_cam[0, 0], I_cam[1, 1]], dtype=np.float32),
+                    radial_coeffs=np.zeros(6, dtype=np.float32),
+                    tangential_coeffs=np.zeros(2, dtype=np.float32),
+                    thin_prism_coeffs=np.zeros(4, dtype=np.float32),
                 ),
             )
 

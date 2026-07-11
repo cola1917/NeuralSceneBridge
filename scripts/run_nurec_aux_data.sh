@@ -7,7 +7,7 @@ OUTPUT_DIR="${OUTPUT_DIR:-${DATASET_DIR}}"
 DATASET_PATH="${DATASET_PATH:-}"
 SHARD_FILE_PATTERN="${SHARD_FILE_PATTERN:-}"
 CAMERA_IDS="${CAMERA_IDS:-}"
-NUMBA_NUM_THREADS="${NUMBA_NUM_THREADS:-auto}"
+NUM_THREADS="${NUM_THREADS:-${NUMBA_NUM_THREADS:-auto}}"
 
 if [[ -z "${NGC_API_KEY:-}" ]]; then
   echo "NGC_API_KEY is not set. Export it before running the auxiliary data container." >&2
@@ -66,4 +66,4 @@ docker run --shm-size=2g --rm --gpus all \
   --store-meta \
   --no-seg-logits \
   --lidar-seg-camvis \
-  --numba-num-threads="${NUMBA_NUM_THREADS}"
+  --num-threads="${NUM_THREADS}"

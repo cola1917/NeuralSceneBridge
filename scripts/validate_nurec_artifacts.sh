@@ -15,7 +15,10 @@ COMPLETE_RUNS=0
 for run_dir in "${OUTPUT_ABS}"/*; do
   [[ -d "${run_dir}" ]] || continue
 
-  usdz="${run_dir}/usd-out/last.usdz"
+  usdz="${run_dir}/artifacts/last.usdz"
+  if [[ ! -f "${usdz}" ]]; then
+    usdz="${run_dir}/usd-out/last.usdz"
+  fi
   config="${run_dir}/config/parsed.yaml"
   checkpoint="${run_dir}/checkpoints/last.ckpt"
 
@@ -27,7 +30,7 @@ for run_dir in "${OUTPUT_ABS}"/*; do
     COMPLETE_RUNS=$((COMPLETE_RUNS + 1))
   else
     echo "Incomplete NuRec run: ${run_dir}"
-    [[ -f "${usdz}" ]] || echo "  missing: usd-out/last.usdz"
+    [[ -f "${usdz}" ]] || echo "  missing: artifacts/last.usdz or usd-out/last.usdz"
     [[ -f "${config}" ]] || echo "  missing: config/parsed.yaml"
     [[ -f "${checkpoint}" ]] || echo "  missing: checkpoints/last.ckpt"
   fi

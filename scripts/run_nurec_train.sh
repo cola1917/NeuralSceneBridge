@@ -20,6 +20,7 @@ CAMERA_IDS="${CAMERA_IDS:-camera_front,camera_front_left,camera_front_right}"
 LIDAR_IDS="${LIDAR_IDS:-lidar_top}"
 CONFIG_NAME="${CONFIG_NAME:-configs/apps/prod/Hyperion-8.1/car2sim_6cam.yaml}"
 MAX_EPOCHS="${MAX_EPOCHS:-1}"
+SAMPLES_PER_EPOCH="${SAMPLES_PER_EPOCH:-}"
 SHM_SIZE="${SHM_SIZE:-64g}"
 GPUS="${GPUS:-all}"
 
@@ -68,7 +69,16 @@ echo "  manifest: ${MANIFEST_ABS}"
 echo "  cameras: ${CAMERA_IDS}"
 echo "  lidar: ${LIDAR_IDS}"
 echo "  epochs: ${MAX_EPOCHS}"
+if [[ -n "${SAMPLES_PER_EPOCH}" ]]; then
+  echo "  samples per epoch: ${SAMPLES_PER_EPOCH}"
+fi
 echo "  output: ${OUTPUT_ABS}"
+
+TRAINER_ARGS=("trainer.max_epochs=${MAX_EPOCHS}")
+DATASET_ARGS=()
+if [[ -n "${SAMPLES_PER_EPOCH}" ]]; then
+  DATASET_ARGS+=("dataset.n_samples_per_epoch=${SAMPLES_PER_EPOCH}")
+fi
 
 docker run --shm-size="${SHM_SIZE}" --rm --gpus "${GPUS}" \
   "${DOCKER_ENV[@]}" \
@@ -82,4 +92,5 @@ docker run --shm-size="${SHM_SIZE}" --rm --gpus "${GPUS}" \
   "dataset.camera_ids=[${CAMERA_IDS}]" \
   "dataset.lidar_ids=[${LIDAR_IDS}]" \
   dataset.aux_data=True \
-  "trainer.max_epochs=${MAX_EPOCHS}"
+  "${DATASET_ARGS[@]}" \
+  "${TRAINER_ARGS[@]}"

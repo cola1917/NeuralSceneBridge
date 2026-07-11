@@ -92,7 +92,7 @@ bash scripts/validate_nurec_artifacts.sh
 A complete NuRec run contains:
 
 ```text
-<RUN-ID>/usd-out/last.usdz
+<RUN-ID>/artifacts/last.usdz
 <RUN-ID>/config/parsed.yaml
 <RUN-ID>/checkpoints/last.ckpt
 ```

@@ -34,7 +34,7 @@ import torch
 from parameterized import parameterized_class
 from upath import UPath
 
-from ncore.impl.data.types import IdealPinholeCameraModelParameters, RowOffsetStructuredSpinningLidarModelParameters
+from ncore.impl.data.types import OpenCVPinholeCameraModelParameters, RowOffsetStructuredSpinningLidarModelParameters
 from ncore.impl.data.v4.components import (
     CameraSensorComponent,
     CuboidsComponent,
@@ -167,12 +167,12 @@ class TestNuScenesConverter(unittest.TestCase):
         for cam_id, cam_reader in camera_readers.items():
             self.assertGreater(cam_reader.frames_count, 0, f"{cam_id} should have frames")
 
-    def test_camera_intrinsics_ideal_pinhole(self):
-        """Verify camera intrinsics are distortion-free ideal pinholes.
+    def test_camera_intrinsics_opencv_pinhole(self):
+        """Verify camera intrinsics are distortion-free OpenCV pinholes.
 
         nuScenes images are already undistorted, so the converter stores an ideal
-        (distortion-free) pinhole model -- there are no distortion coefficients to
-        check, only valid focal length and principal point.
+        pinhole as an OpenCV model with zero distortion coefficients for NuRec
+        compatibility.
         """
         intrinsics_readers = self.reader.open_component_readers(IntrinsicsComponent.Reader)
         self.assertEqual(len(intrinsics_readers), 1)
@@ -187,10 +187,13 @@ class TestNuScenesConverter(unittest.TestCase):
             "camera_back_right",
         ]:
             params = intrinsics_reader.get_camera_model_parameters(cam_id)
-            self.assertIsInstance(params, IdealPinholeCameraModelParameters)
-            params = cast(IdealPinholeCameraModelParameters, params)
+            self.assertIsInstance(params, OpenCVPinholeCameraModelParameters)
+            params = cast(OpenCVPinholeCameraModelParameters, params)
             self.assertTrue(np.all(params.focal_length > 0))
             self.assertTrue(np.all(params.principal_point > 0))
+            np.testing.assert_array_equal(params.radial_coeffs, np.zeros(6, dtype=np.float32))
+            np.testing.assert_array_equal(params.tangential_coeffs, np.zeros(2, dtype=np.float32))
+            np.testing.assert_array_equal(params.thin_prism_coeffs, np.zeros(4, dtype=np.float32))
 
     def test_camera_extrinsics_stored_as_static_poses(self):
         """Verify each camera has a static sensor -> rig extrinsic pose."""
