@@ -11,6 +11,7 @@ Vendored paths:
 
 - `tools/data_converter/cli.py`
 - `tools/data_converter/structured_lidar_model.py`
+- `tools/debug.py`
 - `tools/data_converter/README.md`
 - `tools/data_converter/BUILD.bazel`
 - `tools/data_converter/nuscenes/*`

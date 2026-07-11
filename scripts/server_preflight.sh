@@ -23,7 +23,13 @@ else
 fi
 
 echo "Checking Docker GPU access with ${CUDA_TEST_IMAGE}..."
-docker run --rm --gpus all "${CUDA_TEST_IMAGE}" nvidia-smi >/dev/null
+if ! DOCKER_GPU_OUTPUT="$(docker run --rm --gpus all "${CUDA_TEST_IMAGE}" nvidia-smi 2>&1)"; then
+  printf '%s\n' "${DOCKER_GPU_OUTPUT}" >&2
+  if grep -qiE 'operation not permitted|failed to mount|failed to unmount' <<< "${DOCKER_GPU_OUTPUT}"; then
+    fail "Docker cannot create container mount namespaces. If this host is itself a container, relaunch it as privileged or use a VM/bare-metal host with Docker and NVIDIA Container Toolkit installed on the host."
+  fi
+  fail "Docker cannot access the NVIDIA GPU"
+fi
 echo "  OK: Docker can access the NVIDIA GPU"
 
 FREE_DISK_GB="$(df -Pk "${REPO_ROOT}" | awk 'NR == 2 {print int($4 / 1024 / 1024)}')"
