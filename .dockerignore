@@ -1,0 +1,11 @@
+.agents/
+.codex/
+.git/
+.tmp_ncore_extract/
+data/
+outputs/
+__pycache__/
+*.pyc
+*.pyo
+*.zip
+*.log

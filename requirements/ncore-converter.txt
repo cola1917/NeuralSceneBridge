@@ -1,0 +1,39 @@
+# Runtime dependencies for the vendored NVIDIA NCore nuScenes converter.
+#
+# This is a CPU-focused conversion environment, not the NuRec training runtime.
+# It pins the NCore Python package to the upstream converter snapshot vendored in
+# third_party/ncore_converter. NuRec training should still use NVIDIA's official
+# nre-ga container.
+#
+# PyTorch is pinned to the CPU wheel to keep this converter image smaller and
+# independent of CUDA. Switch to NVIDIA's CUDA wheel set only if a future NCore
+# converter path requires GPU execution.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+nvidia-ncore==19.5.0
+nuscenes-devkit==1.2.0
+
+# Direct imports used by the converter.
+click==8.1.8
+numpy==1.26.4
+pyquaternion==0.9.9
+torch==2.7.0+cpu
+tqdm==4.67.1
+universal-pathlib==0.3.6
+
+# NCore / nuScenes runtime pins aligned with NVIDIA/ncore Python 3.11 lock.
+cachetools==7.1.3
+cbor2==5.9.0
+dataclasses-json==0.6.7
+descartes==1.1.0
+fire==0.7.1
+matplotlib==3.10.0
+numcodecs==0.15.1
+opencv-python-headless==4.11.0.86
+pillow==12.2.0
+pycocotools==2.0.11
+scipy==1.15.2
+scikit-learn==1.8.0
+shapely==2.0.7
+typing-extensions==4.12.2
+zarr==2.18.4

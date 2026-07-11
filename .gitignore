@@ -1,0 +1,27 @@
+# Local runtime / secrets
+.env
+.env.local
+.env.docker
+runtime.local.json
+config/nurec-smoke.env
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Outputs / local artifacts
+outputs/
+# Dataset blobs stay local / server-side; upload separately.
+data/nuscenes-mini/
+data/nuscenes-mini-scene-0061/
+data/nuscenes-mini-scene-1077/
+*.log
+ncore-main.zip
+.tmp_ncore_extract/
+
+# OS
+.DS_Store
+Thumbs.db
