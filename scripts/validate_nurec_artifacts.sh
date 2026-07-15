@@ -43,10 +43,11 @@ if [[ ! "${EXPECTED_MAX_EPOCHS}" =~ ^-?[0-9]+$ ]]; then
   exit 1
 fi
 
-PYTHON_VALIDATOR='import sys
+PYTHON_VALIDATOR='import pickletools
+import sys
+import zipfile
 from pathlib import Path
 
-import torch
 import yaml
 
 config_path = Path(sys.argv[1])
@@ -102,18 +103,37 @@ for key, expected, normalize in checks:
         raise SystemExit(f"config gate failed: expected {key}={expected!r}; found {rendered}")
     print(f"  config {key}: {matches[0][0]}={expected!r}")
 
-try:
-    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
-except TypeError:
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")
-if not isinstance(checkpoint, dict):
-    raise SystemExit(f"checkpoint gate failed: root object is {type(checkpoint).__name__}, expected mapping")
-raw_step = checkpoint.get("global_step")
-actual_step = as_int(raw_step)
+def read_global_step(path):
+    # PyTorch checkpoints are ZIP archives containing a pickle instruction
+    # stream plus tensor blobs. Inspecting opcodes reads the scalar metadata
+    # without importing project classes or executing pickle payloads.
+    with zipfile.ZipFile(path) as archive:
+        candidates = [name for name in archive.namelist() if name.endswith("/data.pkl") or name == "data.pkl"]
+        if len(candidates) != 1:
+            raise SystemExit(f"checkpoint gate failed: expected one data.pkl, found {candidates!r}")
+        payload = archive.read(candidates[0])
+
+    expecting_value = False
+    integer_ops = {"BININT", "BININT1", "BININT2", "INT", "LONG", "LONG1", "LONG4"}
+    string_ops = {"BINUNICODE", "BINUNICODE8", "SHORT_BINUNICODE", "UNICODE"}
+    for opcode, argument, _ in pickletools.genops(payload):
+        if expecting_value:
+            if opcode.name == "MEMOIZE":
+                continue
+            if opcode.name in integer_ops:
+                return int(argument)
+            raise SystemExit(
+                f"checkpoint gate failed: global_step has unsupported opcode {opcode.name}"
+            )
+        if opcode.name in string_ops and argument == "global_step":
+            expecting_value = True
+    raise SystemExit("checkpoint gate failed: global_step not found")
+
+actual_step = read_global_step(checkpoint_path)
 if actual_step != expected_steps:
     raise SystemExit(
         f"checkpoint gate failed: expected global_step={expected_steps}, "
-        f"found {raw_step!r}"
+        f"found {actual_step!r}"
     )
 print(f"  checkpoint global_step: {actual_step}")'
 
@@ -132,7 +152,7 @@ if [[ "${VALIDATION_BACKEND}" == "auto" || "${VALIDATION_BACKEND}" == "docker" ]
 fi
 
 if [[ -z "${VALIDATOR_KIND}" && ( "${VALIDATION_BACKEND}" == "auto" || "${VALIDATION_BACKEND}" == "host" ) ]]; then
-  if command -v python3 >/dev/null 2>&1 && python3 -c 'import torch, yaml' >/dev/null 2>&1; then
+  if command -v python3 >/dev/null 2>&1 && python3 -c 'import yaml' >/dev/null 2>&1; then
     VALIDATOR_KIND="host"
   elif [[ "${VALIDATION_BACKEND}" == "host" ]]; then
     echo "Host validation requested, but python3 with torch and PyYAML is unavailable." >&2
@@ -156,9 +176,11 @@ validate_metadata() {
       "${config}" "${checkpoint}" "${EXPECTED_CAMERA_IDS}" \
       "${EXPECTED_GLOBAL_STEP}" "${EXPECTED_SAMPLES_PER_EPOCH}" "${EXPECTED_MAX_EPOCHS}"
   else
-    docker run --rm --entrypoint python \
+    docker run --rm --entrypoint /bin/bash \
       --volume "${run_dir}:/nurec-run:ro" \
-      "${VALIDATION_IMAGE}" -c "${PYTHON_VALIDATOR}" \
+      "${VALIDATION_IMAGE}" -lc \
+      'export RUNFILES_DIR=/app/run.runfiles; source <(sed "/# Call obfuscated target/,$d" /app/run); exec python3 -c "$@"' \
+      bash "${PYTHON_VALIDATOR}" \
       "/nurec-run/config/parsed.yaml" "/nurec-run/checkpoints/last.ckpt" \
       "${EXPECTED_CAMERA_IDS}" "${EXPECTED_GLOBAL_STEP}" \
       "${EXPECTED_SAMPLES_PER_EPOCH}" "${EXPECTED_MAX_EPOCHS}"

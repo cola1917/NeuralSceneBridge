@@ -1,11 +1,13 @@
 import json
 import os
 from pathlib import Path
+import pickle
 import shutil
 import subprocess
 import tempfile
 import textwrap
 import unittest
+import zipfile
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -32,17 +34,6 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
         fake_modules.mkdir()
         (fake_modules / "yaml.py").write_text(
             "import json\ndef safe_load(stream): return json.load(stream)\n",
-            encoding="utf-8",
-        )
-        (fake_modules / "torch.py").write_text(
-            textwrap.dedent(
-                """
-                import json
-                def load(path, map_location=None, weights_only=False):
-                    with open(path, encoding="utf-8") as stream:
-                        return json.load(stream)
-                """
-            ),
             encoding="utf-8",
         )
         self.env = os.environ.copy()
@@ -72,9 +63,13 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
         )
 
     def _write_checkpoint(self, global_step):
-        (self.run_dir / "checkpoints" / "last.ckpt").write_text(
-            json.dumps({"global_step": global_step}), encoding="utf-8"
-        )
+        with zipfile.ZipFile(
+            self.run_dir / "checkpoints" / "last.ckpt", "w"
+        ) as archive:
+            archive.writestr(
+                "archive/data.pkl",
+                pickle.dumps({"global_step": global_step}, protocol=4),
+            )
 
     def _run(self):
         return subprocess.run(
