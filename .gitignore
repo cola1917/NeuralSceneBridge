@@ -18,6 +18,8 @@ outputs/
 data/nuscenes-mini/
 data/nuscenes-mini-scene-0061/
 data/nuscenes-mini-scene-1077/
+data/*.tar
+data/*.tar.*
 *.log
 ncore-main.zip
 .tmp_ncore_extract/

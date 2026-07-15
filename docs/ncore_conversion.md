@@ -108,6 +108,23 @@ Bash:
 bash scripts/run_ncore_nuscenes_converter.sh
 ```
 
+The wrapper can resolve either selector for manual debugging, but shared jobs
+and the default path use the native nuScenes scene token. Set exactly one when
+overriding the default:
+
+```bash
+SCENE_NAME=scene-1077 bash scripts/run_ncore_nuscenes_converter.sh
+
+SCENE_TOKEN=d25718445d89453381c659b9c8734939 \
+  bash scripts/run_ncore_nuscenes_converter.sh
+```
+
+NCore resolves both selectors to the same scene and records both
+`nuscenes_scene_name` and `nuscenes_scene_token` in the sequence metadata.
+Cross-project jobs must use `SCENE_TOKEN` as the canonical machine identifier;
+the resolved scene name remains display metadata and the NCore sequence
+directory name.
+
 Equivalent converter command inside the container:
 
 ```bash
@@ -116,7 +133,7 @@ python -m tools.data_converter.nuscenes.main \
   --output-dir /workspace/outputs/ncore \
   nuscenes-v4 \
   --version v1.0-mini \
-  --scene-name scene-0061 \
+  --scene-token cc8c0bf57f984915a77078b10eb33198 \
   --store-type itar \
   --profile separate-sensors \
   --sequence-meta
