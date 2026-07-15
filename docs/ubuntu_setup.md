@@ -81,8 +81,10 @@ DATASET_PATH=<generated-ncore-json-name> \
   bash scripts/run_nurec_aux_data.sh
 ```
 
-The auxiliary files are written beside the NCore files by default. Then launch
-the one-epoch, three-camera smoke run:
+The auxiliary files are written beside the selected NCore manifest by default,
+including when `DATASET_PATH` contains a nested directory. Set `OUTPUT_DIR`
+only when an explicit location is needed. Then launch the one-epoch,
+three-camera smoke run:
 
 ```bash
 cp config/nurec-smoke.env.example config/nurec-smoke.env

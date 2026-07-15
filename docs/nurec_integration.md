@@ -73,9 +73,11 @@ DATASET_PATH=<generated-manifest-name.json> \
   bash scripts/run_nurec_aux_data.sh
 ```
 
-By default the aux script writes into `outputs/ncore`, beside the manifest and
-NCore stores. NuRec requires the `.json`, `.zarr.itar`, and `.aux.*.zarr` files
-to be in the same mounted dataset directory.
+By default the aux script writes into the selected manifest's directory. A
+nested path such as `scene-0061/scene-0061.json` therefore writes aux stores to
+`outputs/ncore/scene-0061`, not to its parent. `OUTPUT_DIR` can override the
+default, but NuRec requires the `.json`, `.zarr.itar`, and `.aux.*.zarr` files
+to remain in the same mounted dataset directory.
 
 ## 7. Run A Single-GPU Smoke Reconstruction
 

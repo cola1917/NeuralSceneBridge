@@ -3,7 +3,6 @@ set -euo pipefail
 
 AUX_IMAGE="${AUX_IMAGE:-nvcr.io/nvidia/nre/nre-tools-ga:26.04}"
 DATASET_DIR="${DATASET_DIR:-outputs/ncore}"
-OUTPUT_DIR="${OUTPUT_DIR:-${DATASET_DIR}}"
 DATASET_PATH="${DATASET_PATH:-}"
 SHARD_FILE_PATTERN="${SHARD_FILE_PATTERN:-}"
 CAMERA_IDS="${CAMERA_IDS:-}"
@@ -18,8 +17,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${REPO_ROOT}"
 
-mkdir -p "${OUTPUT_DIR}"
-
 if [[ -z "${DATASET_PATH}" && -z "${SHARD_FILE_PATTERN}" ]]; then
   echo "Set DATASET_PATH or SHARD_FILE_PATTERN, relative to DATASET_DIR or absolute inside the container." >&2
   echo "Example:" >&2
@@ -27,6 +24,39 @@ if [[ -z "${DATASET_PATH}" && -z "${SHARD_FILE_PATTERN}" ]]; then
   echo "  SHARD_FILE_PATTERN=scene-0061.zarr.itar bash scripts/run_nurec_aux_data.sh" >&2
   exit 1
 fi
+
+# NuRec discovers auxiliary stores beside the NCore manifest/shard. When the
+# input is nested below DATASET_DIR, preserve that relative directory in the
+# default output location. An explicitly supplied OUTPUT_DIR always wins.
+if [[ -z "${OUTPUT_DIR:-}" ]]; then
+  OUTPUT_DIR="${DATASET_DIR}"
+  OUTPUT_INPUT="${DATASET_PATH:-${SHARD_FILE_PATTERN}}"
+
+  if [[ "${OUTPUT_INPUT}" == /workdir/dataset/* ]]; then
+    OUTPUT_INPUT="${OUTPUT_INPUT#/workdir/dataset/}"
+  fi
+
+  if [[ "${OUTPUT_INPUT}" != /* ]]; then
+    OUTPUT_PARENT="$(dirname -- "${OUTPUT_INPUT}")"
+    if [[ "${OUTPUT_PARENT}" != "." ]]; then
+      OUTPUT_DIR="${DATASET_DIR}/${OUTPUT_PARENT}"
+    fi
+  fi
+fi
+
+if [[ "${DATASET_DIR}" = /* ]]; then
+  DATASET_HOST_DIR="${DATASET_DIR}"
+else
+  DATASET_HOST_DIR="${REPO_ROOT}/${DATASET_DIR}"
+fi
+
+if [[ "${OUTPUT_DIR}" = /* ]]; then
+  OUTPUT_HOST_DIR="${OUTPUT_DIR}"
+else
+  OUTPUT_HOST_DIR="${REPO_ROOT}/${OUTPUT_DIR}"
+fi
+
+mkdir -p "${OUTPUT_HOST_DIR}"
 
 INPUT_ARGS=()
 if [[ -n "${DATASET_PATH}" ]]; then
@@ -58,8 +88,8 @@ fi
 
 docker run --shm-size=2g --rm --gpus all \
   --env NGC_API_KEY \
-  --volume "${REPO_ROOT}/${DATASET_DIR}:/workdir/dataset" \
-  --volume "${REPO_ROOT}/${OUTPUT_DIR}:/workdir/output" \
+  --volume "${DATASET_HOST_DIR}:/workdir/dataset" \
+  --volume "${OUTPUT_HOST_DIR}:/workdir/output" \
   "${AUX_IMAGE}" \
   "${INPUT_ARGS[@]}" \
   --output-dir=/workdir/output \

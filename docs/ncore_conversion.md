@@ -184,8 +184,12 @@ CAMERA_IDS="camera_front camera_left" \
   bash scripts/run_nurec_aux_data.sh
 ```
 
-The aux output defaults to `outputs/ncore`, beside the NCore `.json` and
-`.zarr.itar` data as required by NuRec training.
+The aux output defaults to the directory containing the selected manifest or
+shard. For example, `DATASET_PATH=scene-0061/scene-0061.json` writes to
+`outputs/ncore/scene-0061`, while a manifest directly under `outputs/ncore`
+writes there. Set `OUTPUT_DIR` explicitly to override this behavior. Keep an
+explicit output beside the manifest because NuRec training expects the NCore
+`.json`, `.zarr.itar`, and `.aux.*.zarr` files together.
 
 ## Run NuRec Smoke Training
 
