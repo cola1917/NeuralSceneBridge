@@ -68,7 +68,9 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
         ) as archive:
             archive.writestr(
                 "archive/data.pkl",
-                pickle.dumps({"global_step": global_step}, protocol=4),
+                # Protocol 2 emits BINPUT between the key and value, matching
+                # the NuRec/Lightning checkpoint produced by the 26.04 image.
+                pickle.dumps({"global_step": global_step}, protocol=2),
             )
 
     def _run(self):

@@ -115,10 +115,11 @@ def read_global_step(path):
 
     expecting_value = False
     integer_ops = {"BININT", "BININT1", "BININT2", "INT", "LONG", "LONG1", "LONG4"}
+    memo_ops = {"BINPUT", "LONG_BINPUT", "MEMOIZE", "PUT"}
     string_ops = {"BINUNICODE", "BINUNICODE8", "SHORT_BINUNICODE", "UNICODE"}
     for opcode, argument, _ in pickletools.genops(payload):
         if expecting_value:
-            if opcode.name == "MEMOIZE":
+            if opcode.name in memo_ops:
                 continue
             if opcode.name in integer_ops:
                 return int(argument)
