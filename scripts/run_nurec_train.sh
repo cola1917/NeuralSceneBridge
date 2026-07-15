@@ -70,9 +70,9 @@ fi
 
 mkdir -p "${OUTPUT_ABS}"
 
-DOCKER_ENV=(-e "NGC_API_KEY=${NGC_API_KEY}")
+DOCKER_ENV=(--env NGC_API_KEY)
 if [[ -n "${CUDA_VISIBLE_DEVICES:-}" ]]; then
-  DOCKER_ENV+=(-e "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES}")
+  DOCKER_ENV+=(--env CUDA_VISIBLE_DEVICES)
 fi
 
 echo "Starting NuRec smoke training:"

@@ -1,10 +1,12 @@
-FROM ubuntu:22.04
+ARG UPSTREAM_BASE_IMAGE=ubuntu:22.04
+FROM ${UPSTREAM_BASE_IMAGE}
 
 ARG MINICONDA_VERSION=py311_25.5.1-0
 ARG CONDA_DIR=/opt/conda
 ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 ARG PIP_DEFAULT_TIMEOUT=120
 ARG PIP_RETRIES=10
+ARG MINICONDA_BASE_URL=https://repo.anaconda.com/miniconda
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PATH=${CONDA_DIR}/bin:${PATH}
@@ -24,7 +26,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN curl -fsSL \
-        "https://repo.anaconda.com/miniconda/Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh" \
+        "${MINICONDA_BASE_URL}/Miniconda3-${MINICONDA_VERSION}-Linux-x86_64.sh" \
         -o /tmp/miniconda.sh \
     && bash /tmp/miniconda.sh -b -p "${CONDA_DIR}" \
     && rm /tmp/miniconda.sh \

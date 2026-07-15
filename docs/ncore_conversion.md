@@ -56,6 +56,16 @@ Bash:
 bash scripts/setup_ncore_images.sh
 ```
 
+The setup wrapper defaults to the NGC CUDA Ubuntu 22.04 base because Docker
+Hub can be unreachable on rental networks. Both the base and Miniconda source
+remain configurable:
+
+```bash
+UPSTREAM_BASE_IMAGE=ubuntu:22.04 \
+MINICONDA_BASE_URL=https://mirrors.tuna.tsinghua.edu.cn/anaconda/miniconda \
+  bash scripts/setup_ncore_images.sh
+```
+
 This builds two images:
 
 ```text
