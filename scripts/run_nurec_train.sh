@@ -21,7 +21,7 @@ LIDAR_IDS="${LIDAR_IDS:-lidar_top}"
 CONFIG_NAME="${CONFIG_NAME:-configs/apps/prod/Hyperion-8.1/car2sim_6cam.yaml}"
 MAX_EPOCHS="${MAX_EPOCHS:-1}"
 SAMPLES_PER_EPOCH="${SAMPLES_PER_EPOCH:-}"
-SHM_SIZE="${SHM_SIZE:-64g}"
+SHM_SIZE="${SHM_SIZE:-32g}"
 GPUS="${GPUS:-all}"
 
 if [[ -z "${NGC_API_KEY:-}" ]]; then
@@ -37,6 +37,16 @@ fi
 if [[ "${DATASET_PATH}" = /* ]]; then
   echo "DATASET_PATH must be relative to DATASET_DIR." >&2
   exit 1
+fi
+
+if [[ "${SHM_SIZE}" =~ ^([0-9]+)[gG]$ ]]; then
+  REQUESTED_SHM_MIB="$((BASH_REMATCH[1] * 1024))"
+  HOST_RAM_MIB="$(awk '/^MemTotal:/ {print int($2 / 1024)}' /proc/meminfo)"
+  if (( REQUESTED_SHM_MIB > HOST_RAM_MIB * 80 / 100 )); then
+    echo "SHM_SIZE=${SHM_SIZE} exceeds 80% of host RAM (${HOST_RAM_MIB} MiB)." >&2
+    echo "Choose a smaller value such as 32g for a 64 GB-class host." >&2
+    exit 1
+  fi
 fi
 
 DATASET_ABS="${REPO_ROOT}/${DATASET_DIR}"

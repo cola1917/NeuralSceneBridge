@@ -26,6 +26,10 @@ Do not store `NGC_API_KEY` in the config file. Export it in the shell:
 export NGC_API_KEY=<your-ngc-api-key>
 ```
 
+The example uses `SHM_SIZE=32g`, which fits a 64 GB-class rental VM. Increase
+it only after checking host RAM; the launcher rejects requests above 80% of
+physical memory.
+
 ## 2. Run Server Preflight
 
 ```bash
