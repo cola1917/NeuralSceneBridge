@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CUDA_TEST_IMAGE="${CUDA_TEST_IMAGE:-nvidia/cuda:12.8.0-base-ubuntu22.04}"
+CUDA_TEST_IMAGE="${CUDA_TEST_IMAGE:-nvcr.io/nvidia/cuda:12.8.0-base-ubuntu22.04}"
 MIN_FREE_DISK_GB="${MIN_FREE_DISK_GB:-50}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

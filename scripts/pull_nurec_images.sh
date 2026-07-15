@@ -5,7 +5,7 @@ NUREC_IMAGE="${NUREC_IMAGE:-nvcr.io/nvidia/nre/nre-ga:26.04}"
 AUX_IMAGE="${AUX_IMAGE:-nvcr.io/nvidia/nre/nre-tools-ga:26.04}"
 
 echo "Checking Docker GPU runtime..."
-docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
+docker run --rm --gpus all nvcr.io/nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
 
 if [[ -z "${NGC_API_KEY:-}" ]]; then
   echo "NGC_API_KEY is not set. Export it before pulling/running NuRec containers." >&2

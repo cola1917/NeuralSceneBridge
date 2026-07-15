@@ -49,14 +49,15 @@ fi
 
 CAMERA_ARGS=()
 if [[ -n "${CAMERA_IDS}" ]]; then
-  read -r -a CAMERA_ID_ARRAY <<< "${CAMERA_IDS}"
+  NORMALIZED_CAMERA_IDS="${CAMERA_IDS//,/ }"
+  read -r -a CAMERA_ID_ARRAY <<< "${NORMALIZED_CAMERA_IDS}"
   for camera_id in "${CAMERA_ID_ARRAY[@]}"; do
     CAMERA_ARGS+=(--camera-id="${camera_id}")
   done
 fi
 
 docker run --shm-size=2g --rm --gpus all \
-  -e "NGC_API_KEY=${NGC_API_KEY}" \
+  --env NGC_API_KEY \
   --volume "${REPO_ROOT}/${DATASET_DIR}:/workdir/dataset" \
   --volume "${REPO_ROOT}/${OUTPUT_DIR}:/workdir/output" \
   "${AUX_IMAGE}" \

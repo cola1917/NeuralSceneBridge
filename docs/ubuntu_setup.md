@@ -24,7 +24,7 @@ Install:
 Quick GPU runtime check:
 
 ```bash
-docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
+docker run --rm --gpus all nvcr.io/nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi
 ```
 
 Project preflight:

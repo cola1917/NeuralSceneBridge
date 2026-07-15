@@ -30,6 +30,11 @@ The example uses `SHM_SIZE=32g`, which fits a 64 GB-class rental VM. Increase
 it only after checking host RAM; the launcher rejects requests above 80% of
 physical memory.
 
+`SAMPLES_PER_EPOCH` controls dataset sampling and is not a training-step
+limit. A strict 1000 optimizer-step run uses `MAX_STEPS=1000`; confirm the
+image's composed config first, then pair it with `MAX_EPOCHS=-1` so an epoch
+limit cannot terminate the run early.
+
 ## 2. Run Server Preflight
 
 ```bash
