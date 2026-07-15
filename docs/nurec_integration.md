@@ -30,10 +30,11 @@ The example uses `SHM_SIZE=32g`, which fits a 64 GB-class rental VM. Increase
 it only after checking host RAM; the launcher rejects requests above 80% of
 physical memory.
 
-`SAMPLES_PER_EPOCH` controls dataset sampling and is not a training-step
-limit. A strict 1000 optimizer-step run uses `MAX_STEPS=1000`; confirm the
-image's composed config first, then pair it with `MAX_EPOCHS=-1` so an epoch
-limit cannot terminate the run early.
+NuRec 26.04 has no structured `trainer.max_steps` field. Its schedules and
+checkpoint cadence define total training iterations as
+`trainer.max_epochs * dataset.n_samples_per_epoch`. The strict three-camera
+1000-step run therefore uses `MAX_EPOCHS=1` and `SAMPLES_PER_EPOCH=1000`, then
+checks `last.ckpt.global_step == 1000`.
 
 ## 2. Run Server Preflight
 

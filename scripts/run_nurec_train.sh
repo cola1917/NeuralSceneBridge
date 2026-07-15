@@ -20,7 +20,6 @@ CAMERA_IDS="${CAMERA_IDS:-camera_front,camera_front_left,camera_front_right}"
 LIDAR_IDS="${LIDAR_IDS:-lidar_top}"
 CONFIG_NAME="${CONFIG_NAME:-configs/apps/prod/Hyperion-8.1/car2sim_6cam.yaml}"
 MAX_EPOCHS="${MAX_EPOCHS:-1}"
-MAX_STEPS="${MAX_STEPS:-}"
 SAMPLES_PER_EPOCH="${SAMPLES_PER_EPOCH:-}"
 SHM_SIZE="${SHM_SIZE:-32g}"
 GPUS="${GPUS:-all}"
@@ -80,18 +79,15 @@ echo "  manifest: ${MANIFEST_ABS}"
 echo "  cameras: ${CAMERA_IDS}"
 echo "  lidar: ${LIDAR_IDS}"
 echo "  epochs: ${MAX_EPOCHS}"
-if [[ -n "${MAX_STEPS}" ]]; then
-  echo "  max steps: ${MAX_STEPS}"
-fi
 if [[ -n "${SAMPLES_PER_EPOCH}" ]]; then
   echo "  samples per epoch: ${SAMPLES_PER_EPOCH}"
+  if [[ "${MAX_EPOCHS}" =~ ^[0-9]+$ && "${SAMPLES_PER_EPOCH}" =~ ^[0-9]+$ ]]; then
+    echo "  configured training steps: $((MAX_EPOCHS * SAMPLES_PER_EPOCH))"
+  fi
 fi
 echo "  output: ${OUTPUT_ABS}"
 
 TRAINER_ARGS=("trainer.max_epochs=${MAX_EPOCHS}")
-if [[ -n "${MAX_STEPS}" ]]; then
-  TRAINER_ARGS+=("trainer.max_steps=${MAX_STEPS}")
-fi
 DATASET_ARGS=()
 if [[ -n "${SAMPLES_PER_EPOCH}" ]]; then
   DATASET_ARGS+=("dataset.n_samples_per_epoch=${SAMPLES_PER_EPOCH}")

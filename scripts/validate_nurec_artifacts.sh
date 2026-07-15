@@ -19,8 +19,9 @@ else
   OUTPUT_ABS="${REPO_ROOT}/${OUTPUT_DIR}"
 fi
 EXPECTED_CAMERA_IDS="${EXPECTED_CAMERA_IDS:-camera_front,camera_front_left,camera_front_right}"
-EXPECTED_MAX_STEPS="${EXPECTED_MAX_STEPS:-1000}"
-EXPECTED_MAX_EPOCHS="${EXPECTED_MAX_EPOCHS:--1}"
+EXPECTED_GLOBAL_STEP="${EXPECTED_GLOBAL_STEP:-1000}"
+EXPECTED_SAMPLES_PER_EPOCH="${EXPECTED_SAMPLES_PER_EPOCH:-1000}"
+EXPECTED_MAX_EPOCHS="${EXPECTED_MAX_EPOCHS:-1}"
 VALIDATION_BACKEND="${NUREC_VALIDATION_BACKEND:-auto}"
 VALIDATION_IMAGE="${NUREC_VALIDATION_IMAGE:-${NUREC_IMAGE:-nvcr.io/nvidia/nre/nre-ga:26.04}}"
 
@@ -29,8 +30,12 @@ if [[ ! -d "${OUTPUT_ABS}" ]]; then
   exit 1
 fi
 
-if [[ ! "${EXPECTED_MAX_STEPS}" =~ ^[0-9]+$ ]]; then
-  echo "EXPECTED_MAX_STEPS must be a non-negative integer, got: ${EXPECTED_MAX_STEPS}" >&2
+if [[ ! "${EXPECTED_GLOBAL_STEP}" =~ ^[0-9]+$ ]]; then
+  echo "EXPECTED_GLOBAL_STEP must be a non-negative integer, got: ${EXPECTED_GLOBAL_STEP}" >&2
+  exit 1
+fi
+if [[ ! "${EXPECTED_SAMPLES_PER_EPOCH}" =~ ^[0-9]+$ ]]; then
+  echo "EXPECTED_SAMPLES_PER_EPOCH must be a non-negative integer, got: ${EXPECTED_SAMPLES_PER_EPOCH}" >&2
   exit 1
 fi
 if [[ ! "${EXPECTED_MAX_EPOCHS}" =~ ^-?[0-9]+$ ]]; then
@@ -48,7 +53,8 @@ config_path = Path(sys.argv[1])
 checkpoint_path = Path(sys.argv[2])
 expected_cameras = [item.strip() for item in sys.argv[3].split(",") if item.strip()]
 expected_steps = int(sys.argv[4])
-expected_epochs = int(sys.argv[5])
+expected_samples = int(sys.argv[5])
+expected_epochs = int(sys.argv[6])
 
 def find_values(node, key, path=""):
     found = []
@@ -85,7 +91,7 @@ if not isinstance(config, dict):
 
 checks = (
     ("camera_ids", expected_cameras, as_cameras),
-    ("max_steps", expected_steps, as_int),
+    ("n_samples_per_epoch", expected_samples, as_int),
     ("max_epochs", expected_epochs, as_int),
 )
 for key, expected, normalize in checks:
@@ -145,20 +151,22 @@ validate_metadata() {
   if [[ "${VALIDATOR_KIND}" == "host" ]]; then
     python3 -c "${PYTHON_VALIDATOR}" \
       "${config}" "${checkpoint}" "${EXPECTED_CAMERA_IDS}" \
-      "${EXPECTED_MAX_STEPS}" "${EXPECTED_MAX_EPOCHS}"
+      "${EXPECTED_GLOBAL_STEP}" "${EXPECTED_SAMPLES_PER_EPOCH}" "${EXPECTED_MAX_EPOCHS}"
   else
     docker run --rm --entrypoint python \
       --volume "${run_dir}:/nurec-run:ro" \
       "${VALIDATION_IMAGE}" -c "${PYTHON_VALIDATOR}" \
       "/nurec-run/config/parsed.yaml" "/nurec-run/checkpoints/last.ckpt" \
-      "${EXPECTED_CAMERA_IDS}" "${EXPECTED_MAX_STEPS}" "${EXPECTED_MAX_EPOCHS}"
+      "${EXPECTED_CAMERA_IDS}" "${EXPECTED_GLOBAL_STEP}" \
+      "${EXPECTED_SAMPLES_PER_EPOCH}" "${EXPECTED_MAX_EPOCHS}"
   fi
 }
 
 echo "NuRec acceptance gate:"
 echo "  cameras: ${EXPECTED_CAMERA_IDS}"
-echo "  max steps / checkpoint global_step: ${EXPECTED_MAX_STEPS}"
+echo "  samples per epoch: ${EXPECTED_SAMPLES_PER_EPOCH}"
 echo "  max epochs: ${EXPECTED_MAX_EPOCHS}"
+echo "  checkpoint global_step: ${EXPECTED_GLOBAL_STEP}"
 echo "  metadata backend: ${VALIDATOR_KIND}"
 
 CANDIDATE_RUNS=0

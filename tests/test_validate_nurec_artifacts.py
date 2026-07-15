@@ -58,13 +58,14 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
     def tearDown(self):
         self.tempdir.cleanup()
 
-    def _write_config(self, *, cameras=None, max_steps=1000, max_epochs=-1):
+    def _write_config(self, *, cameras=None, samples_per_epoch=1000, max_epochs=1):
         config = {
+            "trainer": {"max_epochs": max_epochs},
             "dataset": {
                 "camera_ids": cameras
-                or ["camera_front", "camera_front_left", "camera_front_right"]
+                or ["camera_front", "camera_front_left", "camera_front_right"],
+                "n_samples_per_epoch": samples_per_epoch,
             },
-            "trainer": {"max_steps": max_steps, "max_epochs": max_epochs},
         }
         (self.run_dir / "config" / "parsed.yaml").write_text(
             json.dumps(config), encoding="utf-8"
@@ -103,17 +104,17 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("config gate failed: expected camera_ids", result.stdout)
 
-    def test_rejects_wrong_config_step_limit(self):
-        self._write_config(max_steps=999)
+    def test_rejects_wrong_config_sample_count(self):
+        self._write_config(samples_per_epoch=999)
         result = self._run()
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("expected max_steps=1000", result.stdout)
+        self.assertIn("expected n_samples_per_epoch=1000", result.stdout)
 
     def test_rejects_epoch_limited_config(self):
-        self._write_config(max_epochs=1)
+        self._write_config(max_epochs=2)
         result = self._run()
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("expected max_epochs=-1", result.stdout)
+        self.assertIn("expected max_epochs=1", result.stdout)
 
     def test_rejects_empty_artifact(self):
         (self.run_dir / "artifacts" / "last.usdz").write_bytes(b"")
