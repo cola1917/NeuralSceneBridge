@@ -122,6 +122,38 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("empty USDZ", result.stdout)
 
+    def test_auto_backend_prefers_official_image_over_partial_host_runtime(self):
+        fake_bin = self.root / "fake_bin"
+        fake_bin.mkdir()
+        docker_log = self.root / "docker.log"
+        fake_docker = fake_bin / "docker"
+        fake_docker.write_text(
+            textwrap.dedent(
+                f"""
+                #!/usr/bin/env bash
+                printf '%s\\n' "$*" >> {str(docker_log)!r}
+                if [[ "$1 $2" == "image inspect" ]]; then
+                    exit 0
+                fi
+                if [[ "$1" == "run" ]]; then
+                    echo "checkpoint global_step: 1000"
+                    exit 0
+                fi
+                exit 1
+                """
+            ).lstrip(),
+            encoding="utf-8",
+        )
+        fake_docker.chmod(0o755)
+        self.env["NUREC_VALIDATION_BACKEND"] = "auto"
+        self.env["PATH"] = f"{fake_bin}{os.pathsep}{self.env['PATH']}"
+
+        result = self._run()
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("metadata backend: docker", result.stdout)
+        self.assertIn("run --rm", docker_log.read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

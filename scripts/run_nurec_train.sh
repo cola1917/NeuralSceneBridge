@@ -16,6 +16,7 @@ NUREC_IMAGE="${NUREC_IMAGE:-nvcr.io/nvidia/nre/nre-ga:26.04}"
 DATASET_DIR="${DATASET_DIR:-outputs/ncore}"
 DATASET_PATH="${DATASET_PATH:-}"
 OUTPUT_DIR="${OUTPUT_DIR:-outputs/nurec_smoke}"
+CACHE_DIR="${CACHE_DIR:-.cache/nurec}"
 CAMERA_IDS="${CAMERA_IDS:-camera_front,camera_front_left,camera_front_right}"
 LIDAR_IDS="${LIDAR_IDS:-lidar_top}"
 CONFIG_NAME="${CONFIG_NAME:-configs/apps/prod/Hyperion-8.1/car2sim_6cam.yaml}"
@@ -53,6 +54,12 @@ DATASET_ABS="${REPO_ROOT}/${DATASET_DIR}"
 MANIFEST_ABS="${DATASET_ABS}/${DATASET_PATH}"
 OUTPUT_ABS="${REPO_ROOT}/${OUTPUT_DIR}"
 
+if [[ "${CACHE_DIR}" = /* ]]; then
+  CACHE_ABS="${CACHE_DIR}"
+else
+  CACHE_ABS="${REPO_ROOT}/${CACHE_DIR}"
+fi
+
 if [[ ! -f "${MANIFEST_ABS}" ]]; then
   echo "NCore manifest not found: ${MANIFEST_ABS}" >&2
   exit 1
@@ -67,7 +74,7 @@ if (( ${#AUX_FILES[@]} == 0 )); then
   exit 1
 fi
 
-mkdir -p "${OUTPUT_ABS}"
+mkdir -p "${OUTPUT_ABS}" "${CACHE_ABS}"
 
 DOCKER_ENV=(--env NGC_API_KEY)
 if [[ -n "${CUDA_VISIBLE_DEVICES:-}" ]]; then
@@ -86,6 +93,7 @@ if [[ -n "${SAMPLES_PER_EPOCH}" ]]; then
   fi
 fi
 echo "  output: ${OUTPUT_ABS}"
+echo "  persistent cache: ${CACHE_ABS}"
 
 TRAINER_ARGS=("trainer.max_epochs=${MAX_EPOCHS}")
 DATASET_ARGS=()
@@ -97,6 +105,7 @@ docker run --shm-size="${SHM_SIZE}" --rm --gpus "${GPUS}" \
   "${DOCKER_ENV[@]}" \
   --volume "${DATASET_ABS}:/workdir/dataset" \
   --volume "${OUTPUT_ABS}:/workdir/output" \
+  --volume "${CACHE_ABS}:/home/.cache" \
   "${NUREC_IMAGE}" \
   mode=train \
   out_dir=/workdir/output \

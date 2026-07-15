@@ -118,21 +118,24 @@ if actual_step != expected_steps:
 print(f"  checkpoint global_step: {actual_step}")'
 
 VALIDATOR_KIND=""
-if [[ "${VALIDATION_BACKEND}" == "auto" || "${VALIDATION_BACKEND}" == "host" ]]; then
-  if command -v python3 >/dev/null 2>&1 && python3 -c 'import torch, yaml' >/dev/null 2>&1; then
-    VALIDATOR_KIND="host"
-  elif [[ "${VALIDATION_BACKEND}" == "host" ]]; then
-    echo "Host validation requested, but python3 with torch and PyYAML is unavailable." >&2
-    exit 1
-  fi
-fi
-
-if [[ -z "${VALIDATOR_KIND}" && ( "${VALIDATION_BACKEND}" == "auto" || "${VALIDATION_BACKEND}" == "docker" ) ]]; then
+# In auto mode prefer the same official image that produced the checkpoint.
+# A host can import torch/yaml yet still lack Python classes embedded in the
+# checkpoint (for example OmegaConf), producing a false-negative validation.
+if [[ "${VALIDATION_BACKEND}" == "auto" || "${VALIDATION_BACKEND}" == "docker" ]]; then
   if command -v docker >/dev/null 2>&1 && docker image inspect "${VALIDATION_IMAGE}" >/dev/null 2>&1; then
     VALIDATOR_KIND="docker"
   elif [[ "${VALIDATION_BACKEND}" == "docker" ]]; then
     echo "Docker validation requested, but image is unavailable: ${VALIDATION_IMAGE}" >&2
     echo "Pull it first; artifact validation never pulls a multi-GB image implicitly." >&2
+    exit 1
+  fi
+fi
+
+if [[ -z "${VALIDATOR_KIND}" && ( "${VALIDATION_BACKEND}" == "auto" || "${VALIDATION_BACKEND}" == "host" ) ]]; then
+  if command -v python3 >/dev/null 2>&1 && python3 -c 'import torch, yaml' >/dev/null 2>&1; then
+    VALIDATOR_KIND="host"
+  elif [[ "${VALIDATION_BACKEND}" == "host" ]]; then
+    echo "Host validation requested, but python3 with torch and PyYAML is unavailable." >&2
     exit 1
   fi
 fi

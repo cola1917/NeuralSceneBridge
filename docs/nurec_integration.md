@@ -81,6 +81,10 @@ to remain in the same mounted dataset directory.
 
 ## 7. Run A Single-GPU Smoke Reconstruction
 
+The launcher mounts `CACHE_DIR` (default `.cache/nurec`) at `/home/.cache` in
+the official container. Keep this directory between runs so pretrained model
+weights are downloaded once rather than once per disposable container.
+
 The example config defaults to three forward cameras and one epoch to reduce
 the initial load on a 24-32 GB GPU:
 

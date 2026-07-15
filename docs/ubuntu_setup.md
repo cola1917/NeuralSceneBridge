@@ -91,3 +91,6 @@ cp config/nurec-smoke.env.example config/nurec-smoke.env
 # Update DATASET_PATH in config/nurec-smoke.env.
 bash scripts/run_nurec_train.sh
 ```
+
+The default `.cache/nurec` directory is mounted into the training container so
+downloaded model weights survive `--rm` and are reused by later runs.
