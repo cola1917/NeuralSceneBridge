@@ -179,7 +179,7 @@ validate_metadata() {
     docker run --rm --entrypoint /bin/bash \
       --volume "${run_dir}:/nurec-run:ro" \
       "${VALIDATION_IMAGE}" -lc \
-      'export RUNFILES_DIR=/app/run.runfiles; source <(sed "/# Call obfuscated target/,$d" /app/run); exec python3 -c "$@"' \
+      'export RUNFILES_DIR=/app/run.runfiles; source <(sed "/# Call obfuscated target/,\$d" /app/run); exec python3 -c "$@"' \
       bash "${PYTHON_VALIDATOR}" \
       "/nurec-run/config/parsed.yaml" "/nurec-run/checkpoints/last.ckpt" \
       "${EXPECTED_CAMERA_IDS}" "${EXPECTED_GLOBAL_STEP}" \
