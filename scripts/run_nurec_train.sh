@@ -22,6 +22,7 @@ CAMERA_IDS="${CAMERA_IDS:-camera_front,camera_front_left,camera_front_right}"
 LIDAR_IDS="${LIDAR_IDS:-lidar_top}"
 VAL_CAMERA_IDS="${VAL_CAMERA_IDS:-}"
 VAL_LIDAR_IDS="${VAL_LIDAR_IDS:-}"
+VAL_LIDAR="${VAL_LIDAR:-0}"
 CONFIG_NAME="${CONFIG_NAME:-configs/apps/prod/Hyperion-8.1/car2sim_6cam.yaml}"
 MAX_EPOCHS="${MAX_EPOCHS:-1}"
 SAMPLES_PER_EPOCH="${SAMPLES_PER_EPOCH:-}"
@@ -30,6 +31,10 @@ GPUS="${GPUS:-all}"
 TRACK_LABEL_SOURCES="${TRACK_LABEL_SOURCES:-AUTOLABEL}"
 REQUIRE_DYNAMIC_TRACKS="${REQUIRE_DYNAMIC_TRACKS:-0}"
 NCORE_VALIDATION_IMAGE="${NCORE_VALIDATION_IMAGE:-}"
+REQUIRE_LIDAR_SUPERVISION="${REQUIRE_LIDAR_SUPERVISION:-0}"
+N_TRAIN_SAMPLE_LIDAR_RAYS="${N_TRAIN_SAMPLE_LIDAR_RAYS:-}"
+RATIO_LIDAR_SAMPLES="${RATIO_LIDAR_SAMPLES:-}"
+LIDAR_LOSS_WEIGHT="${LIDAR_LOSS_WEIGHT:-}"
 
 case "${MODE}" in
   train|trainval) ;;
@@ -38,6 +43,37 @@ case "${MODE}" in
     exit 1
     ;;
 esac
+
+for variable in VAL_LIDAR REQUIRE_LIDAR_SUPERVISION; do
+  value="${!variable}"
+  if [[ "${value}" != "0" && "${value}" != "1" ]]; then
+    echo "${variable} must be 0 or 1, got: ${value}" >&2
+    exit 1
+  fi
+done
+if [[ "${VAL_LIDAR}" == "1" && "${MODE}" != "trainval" ]]; then
+  echo "VAL_LIDAR=1 requires MODE=trainval." >&2
+  exit 1
+fi
+if [[ "${REQUIRE_LIDAR_SUPERVISION}" == "1" && -z "${LIDAR_IDS//,/}" ]]; then
+  echo "LIDAR_IDS must not be empty when REQUIRE_LIDAR_SUPERVISION=1." >&2
+  exit 1
+fi
+if [[ "${REQUIRE_LIDAR_SUPERVISION}" == "1" ]]; then
+  for variable in N_TRAIN_SAMPLE_LIDAR_RAYS RATIO_LIDAR_SAMPLES LIDAR_LOSS_WEIGHT; do
+    if [[ -z "${!variable}" ]]; then
+      echo "${variable} is required when REQUIRE_LIDAR_SUPERVISION=1." >&2
+      exit 1
+    fi
+  done
+fi
+for variable in N_TRAIN_SAMPLE_LIDAR_RAYS RATIO_LIDAR_SAMPLES LIDAR_LOSS_WEIGHT; do
+  value="${!variable}"
+  if [[ -n "${value}" ]] && ! awk -v value="${value}" 'BEGIN { exit !(value ~ /^[0-9]+([.][0-9]+)?$/ && value > 0) }'; then
+    echo "${variable} must be a positive number, got: ${value}" >&2
+    exit 1
+  fi
+done
 
 if [[ -z "${NGC_API_KEY:-}" ]]; then
   if ! docker image inspect "${NUREC_IMAGE}" >/dev/null 2>&1; then
@@ -135,6 +171,8 @@ fi
 if [[ -n "${VAL_LIDAR_IDS}" ]]; then
   echo "  validation lidar: ${VAL_LIDAR_IDS}"
 fi
+echo "  validate lidar: ${VAL_LIDAR}"
+echo "  require lidar supervision: ${REQUIRE_LIDAR_SUPERVISION}"
 echo "  epochs: ${MAX_EPOCHS}"
 if [[ -n "${SAMPLES_PER_EPOCH}" ]]; then
   echo "  samples per epoch: ${SAMPLES_PER_EPOCH}"
@@ -159,6 +197,21 @@ fi
 if [[ -n "${VAL_LIDAR_IDS}" ]]; then
   DATASET_ARGS+=("dataset.val_lidar_ids=[${VAL_LIDAR_IDS}]")
 fi
+if [[ "${VAL_LIDAR}" == "1" ]]; then
+  DATASET_ARGS+=("dataset.val_lidar=true")
+else
+  DATASET_ARGS+=("dataset.val_lidar=false")
+fi
+if [[ -n "${N_TRAIN_SAMPLE_LIDAR_RAYS}" ]]; then
+  DATASET_ARGS+=("dataset.n_train_sample_lidar_rays=${N_TRAIN_SAMPLE_LIDAR_RAYS}")
+fi
+if [[ -n "${RATIO_LIDAR_SAMPLES}" ]]; then
+  DATASET_ARGS+=("dataset.samplers.batch_sampler.ratio_lidar_samples=${RATIO_LIDAR_SAMPLES}")
+fi
+LOSS_ARGS=()
+if [[ -n "${LIDAR_LOSS_WEIGHT}" ]]; then
+  LOSS_ARGS+=("loss.lidar.lambda_=${LIDAR_LOSS_WEIGHT}")
+fi
 
 docker run --shm-size="${SHM_SIZE}" --rm --gpus "${GPUS}" \
   "${DOCKER_ENV[@]}" \
@@ -174,4 +227,5 @@ docker run --shm-size="${SHM_SIZE}" --rm --gpus "${GPUS}" \
   "dataset.lidar_ids=[${LIDAR_IDS}]" \
   dataset.aux_data=True \
   "${DATASET_ARGS[@]}" \
+  "${LOSS_ARGS[@]}" \
   "${TRAINER_ARGS[@]}"

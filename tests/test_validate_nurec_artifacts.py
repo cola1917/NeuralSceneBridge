@@ -49,14 +49,32 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
     def tearDown(self):
         self.tempdir.cleanup()
 
-    def _write_config(self, *, cameras=None, samples_per_epoch=1000, max_epochs=1):
+    def _write_config(
+        self,
+        *,
+        cameras=None,
+        samples_per_epoch=1000,
+        max_epochs=1,
+        lidar_rays=2048,
+        lidar_ratio=1.0,
+        lidar_loss=0.005,
+        val_lidar=False,
+    ):
         config = {
             "trainer": {"max_epochs": max_epochs},
             "dataset": {
                 "camera_ids": cameras
                 or ["camera_front", "camera_front_left", "camera_front_right"],
                 "n_samples_per_epoch": samples_per_epoch,
+                "lidar_ids": ["lidar_top"],
+                "train_lidar_ids": ["lidar_top"],
+                "n_train_sample_lidar_rays": lidar_rays,
+                "val_lidar": val_lidar,
+                "samplers": {
+                    "batch_sampler": {"ratio_lidar_samples": lidar_ratio}
+                },
             },
+            "loss": {"lidar": {"lambda_": lidar_loss}},
         }
         (self.run_dir / "config" / "parsed.yaml").write_text(
             json.dumps(config), encoding="utf-8"
@@ -136,6 +154,28 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
         result = self._run()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("expected max_epochs=1", result.stdout)
+
+    def test_lidar_supervision_gate_accepts_multimodal_training_config(self):
+        self.env["REQUIRE_LIDAR_SUPERVISION"] = "1"
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("config dataset.n_train_sample_lidar_rays: 2048.0", result.stdout)
+        self.assertIn("config loss.lidar.lambda_: 0.005", result.stdout)
+
+    def test_lidar_supervision_gate_rejects_zero_lidar_loss(self):
+        self._write_config(lidar_loss=0.0)
+        self.env["REQUIRE_LIDAR_SUPERVISION"] = "1"
+        result = self._run()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("config lidar gate failed", result.stdout)
+        self.assertIn("loss.lidar.lambda_", result.stdout)
+
+    def test_lidar_supervision_gate_requires_requested_validation(self):
+        self.env["REQUIRE_LIDAR_SUPERVISION"] = "1"
+        self.env["EXPECTED_VAL_LIDAR"] = "1"
+        result = self._run()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("expected dataset.val_lidar=True, found False", result.stdout)
 
     def test_rejects_empty_artifact(self):
         (self.run_dir / "artifacts" / "last.usdz").write_bytes(b"")

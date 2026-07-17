@@ -124,6 +124,15 @@ When `REQUIRE_DYNAMIC_TRACKS=1`, validation also inspects the embedded
 minimums are configurable with `EXPECTED_MIN_USDZ_TRACKS`,
 `EXPECTED_MIN_USDZ_VEHICLES`, and `EXPECTED_MIN_USDZ_PEDESTRIANS`.
 
+Formal multimodal runs set `REQUIRE_LIDAR_SUPERVISION=1`. The gate then proves
+that the parsed configuration retains the expected training LiDAR, a positive
+LiDAR ray count and batch ratio, a positive `loss.lidar.lambda_`, and the
+requested LiDAR validation mode. The 26.04 six-camera recipe samples 2048
+LiDAR rays alongside 6144 camera rays per batch. A log line such as
+`call/n_frames_per_lidar: []` is not a dataset count: the 26.04 Gaussian
+post-processing constructor passes an empty LiDAR list because that
+camera-oriented post-processing has no per-LiDAR-frame parameters.
+
 A complete NuRec run contains:
 
 ```text

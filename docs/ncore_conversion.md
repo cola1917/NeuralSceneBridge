@@ -136,6 +136,10 @@ finished USDZ and validates its parallel arrays, pose/timestamp sequences,
 cuboid dimensions, unique IDs, and minimum vehicle/pedestrian counts. Thus a
 successful process exit or a non-empty USDZ cannot hide an actor-empty result.
 
+The same formal gate verifies that LiDAR remains a training modality after
+Hydra composition: the configured sensor IDs, sampled ray count, batch ratio,
+LiDAR loss weight, and validation flag must all satisfy explicit thresholds.
+
 The wrapper can resolve either selector for manual debugging, but shared jobs
 and the default path use the native nuScenes scene token. Set exactly one when
 overriding the default:

@@ -27,6 +27,12 @@ REQUIRE_DYNAMIC_TRACKS="${REQUIRE_DYNAMIC_TRACKS:-0}"
 EXPECTED_MIN_USDZ_TRACKS="${EXPECTED_MIN_USDZ_TRACKS:-1}"
 EXPECTED_MIN_USDZ_VEHICLES="${EXPECTED_MIN_USDZ_VEHICLES:-1}"
 EXPECTED_MIN_USDZ_PEDESTRIANS="${EXPECTED_MIN_USDZ_PEDESTRIANS:-1}"
+REQUIRE_LIDAR_SUPERVISION="${REQUIRE_LIDAR_SUPERVISION:-0}"
+EXPECTED_LIDAR_IDS="${EXPECTED_LIDAR_IDS:-${LIDAR_IDS:-lidar_top}}"
+EXPECTED_MIN_LIDAR_RAYS="${EXPECTED_MIN_LIDAR_RAYS:-1}"
+EXPECTED_MIN_LIDAR_SAMPLE_RATIO="${EXPECTED_MIN_LIDAR_SAMPLE_RATIO:-0.000001}"
+EXPECTED_MIN_LIDAR_LOSS_WEIGHT="${EXPECTED_MIN_LIDAR_LOSS_WEIGHT:-0.000001}"
+EXPECTED_VAL_LIDAR="${EXPECTED_VAL_LIDAR:-${VAL_LIDAR:-0}}"
 VALIDATION_BACKEND="${NUREC_VALIDATION_BACKEND:-auto}"
 VALIDATION_IMAGE="${NUREC_VALIDATION_IMAGE:-${NUREC_IMAGE:-nvcr.io/nvidia/nre/nre-ga:26.04}}"
 
@@ -55,10 +61,28 @@ if [[ "${REQUIRE_DYNAMIC_TRACKS}" != "0" && "${REQUIRE_DYNAMIC_TRACKS}" != "1" ]
   echo "REQUIRE_DYNAMIC_TRACKS must be 0 or 1, got: ${REQUIRE_DYNAMIC_TRACKS}" >&2
   exit 1
 fi
+for variable in REQUIRE_LIDAR_SUPERVISION EXPECTED_VAL_LIDAR; do
+  value="${!variable}"
+  if [[ "${value}" != "0" && "${value}" != "1" ]]; then
+    echo "${variable} must be 0 or 1, got: ${value}" >&2
+    exit 1
+  fi
+done
 for variable in EXPECTED_MIN_USDZ_TRACKS EXPECTED_MIN_USDZ_VEHICLES EXPECTED_MIN_USDZ_PEDESTRIANS; do
   value="${!variable}"
   if [[ ! "${value}" =~ ^[0-9]+$ ]]; then
     echo "${variable} must be a non-negative integer, got: ${value}" >&2
+    exit 1
+  fi
+done
+if [[ ! "${EXPECTED_MIN_LIDAR_RAYS}" =~ ^[0-9]+$ ]]; then
+  echo "EXPECTED_MIN_LIDAR_RAYS must be a non-negative integer, got: ${EXPECTED_MIN_LIDAR_RAYS}" >&2
+  exit 1
+fi
+for variable in EXPECTED_MIN_LIDAR_SAMPLE_RATIO EXPECTED_MIN_LIDAR_LOSS_WEIGHT; do
+  value="${!variable}"
+  if ! awk -v value="${value}" 'BEGIN { exit !(value ~ /^[0-9]+([.][0-9]+)?$/ && value >= 0) }'; then
+    echo "${variable} must be a non-negative number, got: ${value}" >&2
     exit 1
   fi
 done
@@ -76,6 +100,12 @@ expected_cameras = [item.strip() for item in sys.argv[3].split(",") if item.stri
 expected_steps = int(sys.argv[4])
 expected_samples = int(sys.argv[5])
 expected_epochs = int(sys.argv[6])
+require_lidar = sys.argv[7] == "1"
+expected_lidars = [item.strip() for item in sys.argv[8].split(",") if item.strip()]
+min_lidar_rays = int(sys.argv[9])
+min_lidar_ratio = float(sys.argv[10])
+min_lidar_loss = float(sys.argv[11])
+expected_val_lidar = sys.argv[12] == "1"
 
 def find_values(node, key, path=""):
     found = []
@@ -105,6 +135,22 @@ def as_int(value):
     except (TypeError, ValueError):
         return None
 
+def as_float(value):
+    if isinstance(value, bool):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+def at_path(node, path):
+    value = node
+    for key in path.split("."):
+        if not isinstance(value, dict) or key not in value:
+            raise SystemExit(f"config gate failed: required path {path} not found")
+        value = value[key]
+    return value
+
 with config_path.open("r", encoding="utf-8") as stream:
     config = yaml.safe_load(stream)
 if not isinstance(config, dict):
@@ -122,6 +168,36 @@ for key, expected, normalize in checks:
         rendered = ", ".join(f"{path}={value!r}" for path, value in candidates) or "<not found>"
         raise SystemExit(f"config gate failed: expected {key}={expected!r}; found {rendered}")
     print(f"  config {key}: {matches[0][0]}={expected!r}")
+
+if require_lidar:
+    for path in ("dataset.lidar_ids", "dataset.train_lidar_ids"):
+        actual = as_cameras(at_path(config, path))
+        if actual != expected_lidars:
+            raise SystemExit(
+                f"config lidar gate failed: expected {path}={expected_lidars!r}, found {actual!r}"
+            )
+        print(f"  config {path}: {actual!r}")
+
+    lidar_thresholds = (
+        ("dataset.n_train_sample_lidar_rays", float(min_lidar_rays)),
+        ("dataset.samplers.batch_sampler.ratio_lidar_samples", min_lidar_ratio),
+        ("loss.lidar.lambda_", min_lidar_loss),
+    )
+    for path, minimum in lidar_thresholds:
+        actual = as_float(at_path(config, path))
+        if actual is None or actual < minimum:
+            raise SystemExit(
+                f"config lidar gate failed: expected {path}>={minimum}, found {actual!r}"
+            )
+        print(f"  config {path}: {actual} (minimum {minimum})")
+
+    actual_val_lidar = at_path(config, "dataset.val_lidar")
+    if not isinstance(actual_val_lidar, bool) or actual_val_lidar is not expected_val_lidar:
+        raise SystemExit(
+            "config lidar gate failed: expected "
+            f"dataset.val_lidar={expected_val_lidar!r}, found {actual_val_lidar!r}"
+        )
+    print(f"  config dataset.val_lidar: {actual_val_lidar!r}")
 
 def read_global_step(path):
     # PyTorch checkpoints are ZIP archives containing a pickle instruction
@@ -195,7 +271,10 @@ validate_metadata() {
   if [[ "${VALIDATOR_KIND}" == "host" ]]; then
     python3 -c "${PYTHON_VALIDATOR}" \
       "${config}" "${checkpoint}" "${EXPECTED_CAMERA_IDS}" \
-      "${EXPECTED_GLOBAL_STEP}" "${EXPECTED_SAMPLES_PER_EPOCH}" "${EXPECTED_MAX_EPOCHS}"
+      "${EXPECTED_GLOBAL_STEP}" "${EXPECTED_SAMPLES_PER_EPOCH}" "${EXPECTED_MAX_EPOCHS}" \
+      "${REQUIRE_LIDAR_SUPERVISION}" "${EXPECTED_LIDAR_IDS}" \
+      "${EXPECTED_MIN_LIDAR_RAYS}" "${EXPECTED_MIN_LIDAR_SAMPLE_RATIO}" \
+      "${EXPECTED_MIN_LIDAR_LOSS_WEIGHT}" "${EXPECTED_VAL_LIDAR}"
   else
     docker run --rm --entrypoint /bin/bash \
       --volume "${run_dir}:/nurec-run:ro" \
@@ -204,7 +283,10 @@ validate_metadata() {
       bash "${PYTHON_VALIDATOR}" \
       "/nurec-run/config/parsed.yaml" "/nurec-run/checkpoints/last.ckpt" \
       "${EXPECTED_CAMERA_IDS}" "${EXPECTED_GLOBAL_STEP}" \
-      "${EXPECTED_SAMPLES_PER_EPOCH}" "${EXPECTED_MAX_EPOCHS}"
+      "${EXPECTED_SAMPLES_PER_EPOCH}" "${EXPECTED_MAX_EPOCHS}" \
+      "${REQUIRE_LIDAR_SUPERVISION}" "${EXPECTED_LIDAR_IDS}" \
+      "${EXPECTED_MIN_LIDAR_RAYS}" "${EXPECTED_MIN_LIDAR_SAMPLE_RATIO}" \
+      "${EXPECTED_MIN_LIDAR_LOSS_WEIGHT}" "${EXPECTED_VAL_LIDAR}"
   fi
 }
 
@@ -223,6 +305,12 @@ echo "  max epochs: ${EXPECTED_MAX_EPOCHS}"
 echo "  checkpoint global_step: ${EXPECTED_GLOBAL_STEP}"
 echo "  metadata backend: ${VALIDATOR_KIND}"
 echo "  require dynamic USDZ tracks: ${REQUIRE_DYNAMIC_TRACKS}"
+echo "  require lidar supervision: ${REQUIRE_LIDAR_SUPERVISION}"
+if [[ "${REQUIRE_LIDAR_SUPERVISION}" == "1" ]]; then
+  echo "  lidar ids: ${EXPECTED_LIDAR_IDS}"
+  echo "  minimum lidar rays/ratio/loss: ${EXPECTED_MIN_LIDAR_RAYS}/${EXPECTED_MIN_LIDAR_SAMPLE_RATIO}/${EXPECTED_MIN_LIDAR_LOSS_WEIGHT}"
+  echo "  validate lidar: ${EXPECTED_VAL_LIDAR}"
+fi
 if [[ "${REQUIRE_DYNAMIC_TRACKS}" == "1" ]]; then
   echo "  minimum USDZ tracks/vehicles/pedestrians: ${EXPECTED_MIN_USDZ_TRACKS}/${EXPECTED_MIN_USDZ_VEHICLES}/${EXPECTED_MIN_USDZ_PEDESTRIANS}"
 fi
