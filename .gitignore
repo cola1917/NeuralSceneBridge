@@ -4,6 +4,8 @@
 .env.docker
 runtime.local.json
 config/nurec-smoke.env
+config/nurec-formal*.env
+config/nurec-formal*.env
 
 # Python
 __pycache__/

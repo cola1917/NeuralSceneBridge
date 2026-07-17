@@ -61,7 +61,7 @@ This builds:
 
 ```text
 nsb/ncore-conda-base:2026-07-10  # local dependency layer
-nsb/ncore-converter:2026-07-10   # runnable converter
+nsb/ncore-converter:2026-07-17-dense-v1   # runnable converter
 ```
 
 Here "base image" means Docker parent image. In this repo it just caches Ubuntu,

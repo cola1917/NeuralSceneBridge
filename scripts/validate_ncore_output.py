@@ -26,13 +26,36 @@ def load_manifest(path: Path) -> dict[str, Any]:
     return manifest
 
 
+def validate_conversion_provenance(
+    manifest: dict[str, Any], expected_cuboid_sampling: str | None
+) -> None:
+    if expected_cuboid_sampling is None:
+        return
+    metadata = manifest.get("generic_meta_data")
+    if not isinstance(metadata, dict):
+        raise ValueError("manifest has no generic_meta_data provenance")
+    actual = metadata.get("cuboid_sampling")
+    if actual != expected_cuboid_sampling:
+        raise ValueError(
+            "cuboid sampling provenance mismatch: "
+            f"expected {expected_cuboid_sampling!r}, got {actual!r}"
+        )
+    if metadata.get("conversion_provenance_version") != 1:
+        raise ValueError("unsupported or missing conversion_provenance_version")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("manifest", type=Path)
+    parser.add_argument(
+        "--expected-cuboid-sampling",
+        choices=("keyframes", "lidar-sweeps"),
+    )
     args = parser.parse_args()
 
     manifest_path = args.manifest.resolve()
     manifest = load_manifest(manifest_path)
+    validate_conversion_provenance(manifest, args.expected_cuboid_sampling)
     stores = manifest.get("component_stores")
     if manifest.get("version") != "v4":
         raise ValueError(f"unsupported NCore version: {manifest.get('version')!r}")

@@ -22,6 +22,7 @@ EXPECTED_CAMERA_IDS="${EXPECTED_CAMERA_IDS:-${CAMERA_IDS:-camera_front,camera_fr
 EXPECTED_GLOBAL_STEP="${EXPECTED_GLOBAL_STEP:-1000}"
 EXPECTED_SAMPLES_PER_EPOCH="${EXPECTED_SAMPLES_PER_EPOCH:-1000}"
 EXPECTED_MAX_EPOCHS="${EXPECTED_MAX_EPOCHS:-1}"
+REQUIRE_SINGLE_RUN="${REQUIRE_SINGLE_RUN:-0}"
 VALIDATION_BACKEND="${NUREC_VALIDATION_BACKEND:-auto}"
 VALIDATION_IMAGE="${NUREC_VALIDATION_IMAGE:-${NUREC_IMAGE:-nvcr.io/nvidia/nre/nre-ga:26.04}}"
 
@@ -40,6 +41,10 @@ if [[ ! "${EXPECTED_SAMPLES_PER_EPOCH}" =~ ^[0-9]+$ ]]; then
 fi
 if [[ ! "${EXPECTED_MAX_EPOCHS}" =~ ^-?[0-9]+$ ]]; then
   echo "EXPECTED_MAX_EPOCHS must be an integer, got: ${EXPECTED_MAX_EPOCHS}" >&2
+  exit 1
+fi
+if [[ "${REQUIRE_SINGLE_RUN}" != "0" && "${REQUIRE_SINGLE_RUN}" != "1" ]]; then
+  echo "REQUIRE_SINGLE_RUN must be 0 or 1, got: ${REQUIRE_SINGLE_RUN}" >&2
   exit 1
 fi
 
@@ -248,6 +253,10 @@ done
 
 if (( CANDIDATE_RUNS == 0 )); then
   echo "No NuRec run directories found below ${OUTPUT_ABS}." >&2
+  exit 1
+fi
+if [[ "${REQUIRE_SINGLE_RUN}" == "1" ]] && (( CANDIDATE_RUNS != 1 )); then
+  echo "Expected exactly one NuRec run, found ${CANDIDATE_RUNS}." >&2
   exit 1
 fi
 if (( VALID_RUNS == 0 )); then

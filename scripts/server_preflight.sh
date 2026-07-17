@@ -45,7 +45,7 @@ else
 fi
 
 for image in \
-  "nsb/ncore-converter:2026-07-10" \
+  "nsb/ncore-converter:2026-07-17-dense-v1" \
   "nvcr.io/nvidia/nre/nre-tools-ga:26.04" \
   "nvcr.io/nvidia/nre/nre-ga:26.04"; do
   if docker image inspect "${image}" >/dev/null 2>&1; then

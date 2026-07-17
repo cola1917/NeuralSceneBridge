@@ -90,6 +90,15 @@ The launcher mounts `CACHE_DIR` (default `.cache/nurec`) at `/home/.cache` in
 the official container. Keep this directory between runs so pretrained model
 weights are downloaded once rather than once per disposable container.
 
+The formal example deliberately writes dense conversion and training outputs
+to versioned roots ending in `dense_lidar_sweeps_v1` and `attempt_001`.
+Do not point a dense attempt at the legacy `outputs/ncore` or
+`outputs/nurec_formal_scene0061_6cam_40k` roots: those may contain a valid old
+run whose artifacts would not prove that dense cuboids were used. The formal
+launcher records one-second GPU/RAM/disk samples in
+`launcher/resources.csv` and a peak/minimum summary in
+`launcher/resources.summary.json`.
+
 The example config defaults to three forward cameras and one epoch to reduce
 the initial load on a 24-32 GB GPU:
 

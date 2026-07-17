@@ -44,11 +44,11 @@ The converter uses two local images:
 
 ```text
 nsb/ncore-conda-base:2026-07-10  # dependency layer, built to avoid reinstalling Miniconda/Python deps every edit
-nsb/ncore-converter:2026-07-10   # runnable converter image
+nsb/ncore-converter:2026-07-17-dense-v1   # runnable converter image
 ```
 
 The base image is only our local parent layer. It is not an NVIDIA NuRec image.
-The conversion command uses `nsb/ncore-converter:2026-07-10`.
+The conversion command uses `nsb/ncore-converter:2026-07-17-dense-v1`.
 
 Bash:
 
@@ -70,7 +70,7 @@ This builds two images:
 
 ```text
 nsb/ncore-conda-base:2026-07-10
-nsb/ncore-converter:2026-07-10
+nsb/ncore-converter:2026-07-17-dense-v1
 ```
 
 ## Validate Environment And Data
@@ -94,7 +94,7 @@ docker run --rm \
   -v "${PWD}:/workspace" \
   -w /workspace \
   -e PYTHONPATH=/workspace/third_party/ncore_converter \
-  nsb/ncore-converter:2026-07-10 \
+  nsb/ncore-converter:2026-07-17-dense-v1 \
   python scripts/validate_ncore_env.py \
   --converter-root third_party/ncore_converter \
   --nuscenes-root data/nuscenes-mini-scene-0061 \
@@ -155,7 +155,10 @@ python -m tools.data_converter.nuscenes.main \
   --sequence-meta
 ```
 
-The output should be written under `outputs/ncore`.
+The formal dense output is written under
+`outputs/ncore_dense_lidar_sweeps_v1`. Keeping it separate from the legacy
+`outputs/ncore` tree prevents a new conversion or acceptance check from
+silently reusing keyframe-only stores.
 
 ## Generate NuRec Auxiliary Data
 

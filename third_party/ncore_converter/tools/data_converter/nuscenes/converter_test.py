@@ -22,6 +22,7 @@ for CI since it is small (~4GB).
 Set NUSCENES_VERSION to override the default (v1.0-mini for tests).
 """
 
+import json
 import os
 import tempfile
 import unittest
@@ -428,6 +429,15 @@ class TestNuScenesConverter(unittest.TestCase):
     def test_sequence_id_matches_scene_name(self):
         """Verify the sequence ID matches the scene name."""
         self.assertEqual(self.reader.sequence_id, self.scene_name)
+
+    def test_manifest_records_dense_conversion_provenance(self):
+        meta_files = list(self.seq_dir.glob("*.json"))
+        with meta_files[0].open("r") as stream:
+            manifest = json.load(stream)
+        metadata = manifest["generic_meta_data"]
+        self.assertEqual(metadata["cuboid_sampling"], "lidar-sweeps")
+        self.assertEqual(metadata["lidar_model_resolution"], 4)
+        self.assertEqual(metadata["conversion_provenance_version"], 1)
 
 
 if __name__ == "__main__":

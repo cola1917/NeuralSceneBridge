@@ -290,6 +290,9 @@ class NuScenesConverter4(FileBasedDataConverter):
                 "nuscenes_version": self._version,
                 "nuscenes_scene_token": scene_token,
                 "nuscenes_scene_name": scene_name,
+                "cuboid_sampling": self._cuboid_sampling,
+                "lidar_model_resolution": self._lidar_model_resolution,
+                "conversion_provenance_version": 1,
             },
         )
 

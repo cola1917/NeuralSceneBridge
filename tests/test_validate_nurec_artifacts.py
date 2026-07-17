@@ -119,6 +119,13 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("empty USDZ", result.stdout)
 
+    def test_strict_formal_gate_rejects_multiple_run_directories(self):
+        shutil.copytree(self.run_dir, self.root / "outputs" / "second-run")
+        self.env["REQUIRE_SINGLE_RUN"] = "1"
+        result = self._run()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Expected exactly one NuRec run, found 2", result.stderr)
+
     def test_auto_backend_prefers_official_image_over_partial_host_runtime(self):
         fake_bin = self.root / "fake_bin"
         fake_bin.mkdir()

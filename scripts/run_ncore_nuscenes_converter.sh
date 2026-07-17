@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE="${IMAGE:-nsb/ncore-converter:2026-07-10}"
+IMAGE="${IMAGE:-nsb/ncore-converter:2026-07-17-dense-v1}"
 ROOT_DIR="${ROOT_DIR:-data/nuscenes-mini-scene-0061}"
-OUTPUT_DIR="${OUTPUT_DIR:-outputs/ncore}"
+OUTPUT_DIR="${OUTPUT_DIR:-outputs/ncore_dense_lidar_sweeps_v1}"
 VERSION="${VERSION:-v1.0-mini}"
 SCENE_NAME="${SCENE_NAME:-}"
 SCENE_TOKEN="${SCENE_TOKEN:-}"
