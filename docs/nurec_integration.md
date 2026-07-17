@@ -119,6 +119,11 @@ camera_front,camera_front_left,camera_front_right,camera_back,camera_back_left,c
 bash scripts/validate_nurec_artifacts.sh
 ```
 
+When `REQUIRE_DYNAMIC_TRACKS=1`, validation also inspects the embedded
+`sequence_tracks.json` and requires valid vehicle and pedestrian tracks. The
+minimums are configurable with `EXPECTED_MIN_USDZ_TRACKS`,
+`EXPECTED_MIN_USDZ_VEHICLES`, and `EXPECTED_MIN_USDZ_PEDESTRIANS`.
+
 A complete NuRec run contains:
 
 ```text

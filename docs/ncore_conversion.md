@@ -131,6 +131,11 @@ inside the converter image and requires at least one moving `automobile` and
 one moving `pedestrian` before NuRec is allowed to start. This gate prevents a
 large but actor-empty USDZ from being accepted.
 
+The formal artifact gate independently opens `sequence_tracks.json` from the
+finished USDZ and validates its parallel arrays, pose/timestamp sequences,
+cuboid dimensions, unique IDs, and minimum vehicle/pedestrian counts. Thus a
+successful process exit or a non-empty USDZ cannot hide an actor-empty result.
+
 The wrapper can resolve either selector for manual debugging, but shared jobs
 and the default path use the native nuScenes scene token. Set exactly one when
 overriding the default:

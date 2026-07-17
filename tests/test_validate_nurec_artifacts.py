@@ -73,6 +73,30 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
                 pickle.dumps({"global_step": global_step}, protocol=2),
             )
 
+    def _write_dynamic_usdz(self, labels):
+        track_count = len(labels)
+        payload = {
+            "dummy_chunk_id": {
+                "tracks_data": {
+                    "tracks_id": [f"track-{index}" for index in range(track_count)],
+                    "tracks_poses": [
+                        [[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]]
+                        for _ in labels
+                    ],
+                    "tracks_timestamps_us": [[1_000_000] for _ in labels],
+                    "tracks_label_class": labels,
+                    "tracks_flags": [0] * track_count,
+                },
+                "cuboidtracks_data": {
+                    "cuboids_dims": [[4.0, 2.0, 1.5] for _ in labels]
+                },
+            }
+        }
+        with zipfile.ZipFile(
+            self.run_dir / "artifacts" / "last.usdz", "w"
+        ) as archive:
+            archive.writestr("sequence_tracks.json", json.dumps(payload))
+
     def _run(self):
         return subprocess.run(
             ["bash", str(SCRIPT)],
@@ -118,6 +142,21 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
         result = self._run()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("empty USDZ", result.stdout)
+
+    def test_dynamic_gate_accepts_vehicle_and_pedestrian_tracks(self):
+        self._write_dynamic_usdz(["automobile", "pedestrian"])
+        self.env["REQUIRE_DYNAMIC_TRACKS"] = "1"
+        self.env["EXPECTED_MIN_USDZ_TRACKS"] = "2"
+        result = self._run()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('"track_count": 2', result.stdout)
+
+    def test_dynamic_gate_rejects_actor_empty_usdz(self):
+        self._write_dynamic_usdz([])
+        self.env["REQUIRE_DYNAMIC_TRACKS"] = "1"
+        result = self._run()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("result: FAIL (dynamic-track gate)", result.stdout)
 
     def test_strict_formal_gate_rejects_multiple_run_directories(self):
         shutil.copytree(self.run_dir, self.root / "outputs" / "second-run")

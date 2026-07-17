@@ -23,6 +23,10 @@ EXPECTED_GLOBAL_STEP="${EXPECTED_GLOBAL_STEP:-1000}"
 EXPECTED_SAMPLES_PER_EPOCH="${EXPECTED_SAMPLES_PER_EPOCH:-1000}"
 EXPECTED_MAX_EPOCHS="${EXPECTED_MAX_EPOCHS:-1}"
 REQUIRE_SINGLE_RUN="${REQUIRE_SINGLE_RUN:-0}"
+REQUIRE_DYNAMIC_TRACKS="${REQUIRE_DYNAMIC_TRACKS:-0}"
+EXPECTED_MIN_USDZ_TRACKS="${EXPECTED_MIN_USDZ_TRACKS:-1}"
+EXPECTED_MIN_USDZ_VEHICLES="${EXPECTED_MIN_USDZ_VEHICLES:-1}"
+EXPECTED_MIN_USDZ_PEDESTRIANS="${EXPECTED_MIN_USDZ_PEDESTRIANS:-1}"
 VALIDATION_BACKEND="${NUREC_VALIDATION_BACKEND:-auto}"
 VALIDATION_IMAGE="${NUREC_VALIDATION_IMAGE:-${NUREC_IMAGE:-nvcr.io/nvidia/nre/nre-ga:26.04}}"
 
@@ -47,6 +51,17 @@ if [[ "${REQUIRE_SINGLE_RUN}" != "0" && "${REQUIRE_SINGLE_RUN}" != "1" ]]; then
   echo "REQUIRE_SINGLE_RUN must be 0 or 1, got: ${REQUIRE_SINGLE_RUN}" >&2
   exit 1
 fi
+if [[ "${REQUIRE_DYNAMIC_TRACKS}" != "0" && "${REQUIRE_DYNAMIC_TRACKS}" != "1" ]]; then
+  echo "REQUIRE_DYNAMIC_TRACKS must be 0 or 1, got: ${REQUIRE_DYNAMIC_TRACKS}" >&2
+  exit 1
+fi
+for variable in EXPECTED_MIN_USDZ_TRACKS EXPECTED_MIN_USDZ_VEHICLES EXPECTED_MIN_USDZ_PEDESTRIANS; do
+  value="${!variable}"
+  if [[ ! "${value}" =~ ^[0-9]+$ ]]; then
+    echo "${variable} must be a non-negative integer, got: ${value}" >&2
+    exit 1
+  fi
+done
 
 PYTHON_VALIDATOR='import pickletools
 import sys
@@ -193,12 +208,24 @@ validate_metadata() {
   fi
 }
 
+validate_dynamic_tracks() {
+  local usdz="$1"
+  python3 "${SCRIPT_DIR}/validate_nurec_usdz_tracks.py" "${usdz}" \
+    --min-total "${EXPECTED_MIN_USDZ_TRACKS}" \
+    --min-vehicles "${EXPECTED_MIN_USDZ_VEHICLES}" \
+    --min-pedestrians "${EXPECTED_MIN_USDZ_PEDESTRIANS}"
+}
+
 echo "NuRec acceptance gate:"
 echo "  cameras: ${EXPECTED_CAMERA_IDS}"
 echo "  samples per epoch: ${EXPECTED_SAMPLES_PER_EPOCH}"
 echo "  max epochs: ${EXPECTED_MAX_EPOCHS}"
 echo "  checkpoint global_step: ${EXPECTED_GLOBAL_STEP}"
 echo "  metadata backend: ${VALIDATOR_KIND}"
+echo "  require dynamic USDZ tracks: ${REQUIRE_DYNAMIC_TRACKS}"
+if [[ "${REQUIRE_DYNAMIC_TRACKS}" == "1" ]]; then
+  echo "  minimum USDZ tracks/vehicles/pedestrians: ${EXPECTED_MIN_USDZ_TRACKS}/${EXPECTED_MIN_USDZ_VEHICLES}/${EXPECTED_MIN_USDZ_PEDESTRIANS}"
+fi
 
 CANDIDATE_RUNS=0
 VALID_RUNS=0
@@ -241,14 +268,24 @@ for run_dir in "${OUTPUT_ABS}"/*; do
   fi
 
   validation_output=""
-  if validation_output="$(validate_metadata "${run_dir}" "${config}" "${checkpoint}" 2>&1)"; then
-    printf '%s\n' "${validation_output}"
-    echo "  result: PASS"
-    VALID_RUNS=$((VALID_RUNS + 1))
-  else
+  if ! validation_output="$(validate_metadata "${run_dir}" "${config}" "${checkpoint}" 2>&1)"; then
     printf '%s\n' "${validation_output}"
     echo "  result: FAIL (configuration or checkpoint gate)"
+    continue
   fi
+  printf '%s\n' "${validation_output}"
+
+  if [[ "${REQUIRE_DYNAMIC_TRACKS}" == "1" ]]; then
+    if ! validation_output="$(validate_dynamic_tracks "${usdz}" 2>&1)"; then
+      printf '%s\n' "${validation_output}"
+      echo "  result: FAIL (dynamic-track gate)"
+      continue
+    fi
+    printf '%s\n' "${validation_output}"
+  fi
+
+  echo "  result: PASS"
+  VALID_RUNS=$((VALID_RUNS + 1))
 done
 
 if (( CANDIDATE_RUNS == 0 )); then
