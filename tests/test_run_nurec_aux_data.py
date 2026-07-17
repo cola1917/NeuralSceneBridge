@@ -97,6 +97,13 @@ class RunNuRecAuxDataTests(unittest.TestCase):
             args,
         )
 
+    def test_local_aux_image_does_not_require_ngc_key(self):
+        self.env.pop("NGC_API_KEY")
+        result, args = self._run(DATASET_PATH="scene-0061/scene-0061.json")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn("NGC_API_KEY", args)
+
 
 if __name__ == "__main__":
     unittest.main()

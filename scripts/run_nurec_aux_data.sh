@@ -8,8 +8,13 @@ SHARD_FILE_PATTERN="${SHARD_FILE_PATTERN:-}"
 CAMERA_IDS="${CAMERA_IDS:-}"
 NUM_THREADS="${NUM_THREADS:-${NUMBA_NUM_THREADS:-auto}}"
 
-if [[ -z "${NGC_API_KEY:-}" ]]; then
-  echo "NGC_API_KEY is not set. Export it before running the auxiliary data container." >&2
+DOCKER_ENV=()
+if [[ -n "${NGC_API_KEY:-}" ]]; then
+  DOCKER_ENV+=(--env NGC_API_KEY)
+elif docker image inspect "${AUX_IMAGE}" >/dev/null 2>&1; then
+  echo "NGC_API_KEY is not set; using the already-pulled local auxiliary image." >&2
+else
+  echo "NGC_API_KEY is not set and the auxiliary image is unavailable locally." >&2
   exit 1
 fi
 
@@ -87,7 +92,7 @@ if [[ -n "${CAMERA_IDS}" ]]; then
 fi
 
 docker run --shm-size=2g --rm --gpus all \
-  --env NGC_API_KEY \
+  "${DOCKER_ENV[@]}" \
   --volume "${DATASET_HOST_DIR}:/workdir/dataset" \
   --volume "${OUTPUT_HOST_DIR}:/workdir/output" \
   "${AUX_IMAGE}" \
