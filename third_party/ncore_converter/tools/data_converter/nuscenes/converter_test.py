@@ -35,7 +35,7 @@ import torch
 from parameterized import parameterized_class
 from upath import UPath
 
-from ncore.impl.data.types import OpenCVPinholeCameraModelParameters, RowOffsetStructuredSpinningLidarModelParameters
+from ncore.impl.data.types import LabelSource, OpenCVPinholeCameraModelParameters, RowOffsetStructuredSpinningLidarModelParameters
 from ncore.impl.data.v4.components import (
     CameraSensorComponent,
     CuboidsComponent,
@@ -395,6 +395,8 @@ class TestNuScenesConverter(unittest.TestCase):
         self.assertIsInstance(obs.track_id, str)
         self.assertIsInstance(obs.class_id, str)
         self.assertEqual(obs.reference_frame_id, "world_global")
+        self.assertEqual(obs.source, LabelSource.EXTERNAL)
+        self.assertNotIn(obs.class_id, {"car", "truck", "construction_vehicle", "emergency_vehicle"})
 
         # Dense mode must add at least one observation between source keyframes.
         nusc = get_nuscenes(version=self.nuscenes_version, dataroot=self.nuscenes_dir)
@@ -436,8 +438,10 @@ class TestNuScenesConverter(unittest.TestCase):
             manifest = json.load(stream)
         metadata = manifest["generic_meta_data"]
         self.assertEqual(metadata["cuboid_sampling"], "lidar-sweeps")
+        self.assertEqual(metadata["cuboid_label_source"], "EXTERNAL")
+        self.assertEqual(metadata["cuboid_class_schema"], "nre-26.04-car2sim")
         self.assertEqual(metadata["lidar_model_resolution"], 4)
-        self.assertEqual(metadata["conversion_provenance_version"], 1)
+        self.assertEqual(metadata["conversion_provenance_version"], 2)
 
 
 if __name__ == "__main__":

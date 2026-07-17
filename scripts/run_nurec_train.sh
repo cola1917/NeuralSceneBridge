@@ -27,6 +27,9 @@ MAX_EPOCHS="${MAX_EPOCHS:-1}"
 SAMPLES_PER_EPOCH="${SAMPLES_PER_EPOCH:-}"
 SHM_SIZE="${SHM_SIZE:-32g}"
 GPUS="${GPUS:-all}"
+TRACK_LABEL_SOURCES="${TRACK_LABEL_SOURCES:-AUTOLABEL}"
+REQUIRE_DYNAMIC_TRACKS="${REQUIRE_DYNAMIC_TRACKS:-0}"
+NCORE_VALIDATION_IMAGE="${NCORE_VALIDATION_IMAGE:-}"
 
 case "${MODE}" in
   train|trainval) ;;
@@ -90,6 +93,30 @@ fi
 
 mkdir -p "${OUTPUT_ABS}" "${CACHE_ABS}"
 
+if [[ "${REQUIRE_DYNAMIC_TRACKS}" == "1" ]]; then
+  if [[ -z "${NCORE_VALIDATION_IMAGE}" ]]; then
+    echo "NCORE_VALIDATION_IMAGE is required when REQUIRE_DYNAMIC_TRACKS=1." >&2
+    exit 1
+  fi
+  if ! docker image inspect "${NCORE_VALIDATION_IMAGE}" >/dev/null 2>&1; then
+    echo "NCore validation image is not available: ${NCORE_VALIDATION_IMAGE}" >&2
+    exit 1
+  fi
+  mkdir -p "${OUTPUT_ABS}/launcher"
+  docker run --rm \
+    --volume "${DATASET_ABS}:/ncore-dataset:ro" \
+    --volume "${SCRIPT_DIR}/validate_ncore_dynamic_tracks.py:/validate_ncore_dynamic_tracks.py:ro" \
+    --volume "${OUTPUT_ABS}/launcher:/validation-output" \
+    --entrypoint python \
+    "${NCORE_VALIDATION_IMAGE}" \
+    /validate_ncore_dynamic_tracks.py \
+    "/ncore-dataset/${DATASET_PATH}" \
+    --accepted-sources "${TRACK_LABEL_SOURCES}" \
+    --vehicle-classes automobile \
+    --pedestrian-classes pedestrian \
+    --output /validation-output/ncore_dynamic_tracks.json
+fi
+
 DOCKER_ENV=()
 if [[ -n "${NGC_API_KEY:-}" ]]; then
   DOCKER_ENV+=(--env NGC_API_KEY)
@@ -120,6 +147,9 @@ echo "  persistent cache: ${CACHE_ABS}"
 
 TRAINER_ARGS=("trainer.max_epochs=${MAX_EPOCHS}")
 DATASET_ARGS=()
+if [[ -n "${TRACK_LABEL_SOURCES}" ]]; then
+  DATASET_ARGS+=("dataset.cuboid_tracks_params.track_label_sources=[${TRACK_LABEL_SOURCES}]")
+fi
 if [[ -n "${SAMPLES_PER_EPOCH}" ]]; then
   DATASET_ARGS+=("dataset.n_samples_per_epoch=${SAMPLES_PER_EPOCH}")
 fi

@@ -123,6 +123,14 @@ are interpolated at every LiDAR sweep. Set `CUBOID_SAMPLING=keyframes` only to
 reproduce the source annotation cadence. Dense cuboids require rebuilding the
 NCore/NuRec artifact; they do not repair an already-trained USDZ at runtime.
 
+The converter preserves nuScenes annotations as `EXTERNAL` and maps actor
+classes to the NRE 26.04 `car2sim` layer names (`vehicle.car` becomes
+`automobile`). Formal training sets `TRACK_LABEL_SOURCES=EXTERNAL` and enables
+`REQUIRE_DYNAMIC_TRACKS=1`; the launcher then reads the NCore cuboid component
+inside the converter image and requires at least one moving `automobile` and
+one moving `pedestrian` before NuRec is allowed to start. This gate prevents a
+large but actor-empty USDZ from being accepted.
+
 The wrapper can resolve either selector for manual debugging, but shared jobs
 and the default path use the native nuScenes scene token. Set exactly one when
 overriding the default:

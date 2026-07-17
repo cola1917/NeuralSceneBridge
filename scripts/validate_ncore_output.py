@@ -40,8 +40,12 @@ def validate_conversion_provenance(
             "cuboid sampling provenance mismatch: "
             f"expected {expected_cuboid_sampling!r}, got {actual!r}"
         )
-    if metadata.get("conversion_provenance_version") != 1:
+    if metadata.get("conversion_provenance_version") != 2:
         raise ValueError("unsupported or missing conversion_provenance_version")
+    if metadata.get("cuboid_label_source") != "EXTERNAL":
+        raise ValueError("unsupported or missing cuboid_label_source")
+    if metadata.get("cuboid_class_schema") != "nre-26.04-car2sim":
+        raise ValueError("unsupported or missing cuboid_class_schema")
 
 
 def main() -> int:

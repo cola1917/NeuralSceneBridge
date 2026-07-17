@@ -26,6 +26,8 @@ from nuscenes.nuscenes import NuScenes
 from nuscenes.utils.data_classes import Box
 from pyquaternion import Quaternion
 
+from tools.data_converter.nuscenes.contract import NUSCENES_CATEGORY_MAP
+
 
 # --- Sensor ID mappings --------------------------------------------------------
 # Mapping from NCore sensor ID -> nuScenes channel name
@@ -49,27 +51,6 @@ RADAR_MAP: Dict[str, str] = {
     "radar_back_left": "RADAR_BACK_LEFT",
     "radar_back_right": "RADAR_BACK_RIGHT",
 }
-
-# nuScenes category name -> NCore class_id mapping
-NUSCENES_CATEGORY_MAP: Dict[str, str] = {
-    "vehicle.car": "car",
-    "vehicle.truck": "truck",
-    "vehicle.bus.bendy": "bus",
-    "vehicle.bus.rigid": "bus",
-    "vehicle.construction": "construction_vehicle",
-    "vehicle.motorcycle": "motorcycle",
-    "vehicle.bicycle": "bicycle",
-    "vehicle.trailer": "trailer",
-    "vehicle.emergency.ambulance": "emergency_vehicle",
-    "vehicle.emergency.police": "emergency_vehicle",
-    "human.pedestrian.adult": "pedestrian",
-    "human.pedestrian.child": "pedestrian",
-    "human.pedestrian.construction_worker": "pedestrian",
-    "human.pedestrian.police_officer": "pedestrian",
-    "movable_object.barrier": "barrier",
-    "movable_object.trafficcone": "traffic_cone",
-}
-
 
 # --- nuScenes DB helpers -------------------------------------------------------
 

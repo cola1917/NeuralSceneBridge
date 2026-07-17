@@ -11,7 +11,9 @@ class ValidateNCoreOutputTests(unittest.TestCase):
             {
                 "generic_meta_data": {
                     "cuboid_sampling": "lidar-sweeps",
-                    "conversion_provenance_version": 1,
+                    "cuboid_label_source": "EXTERNAL",
+                    "cuboid_class_schema": "nre-26.04-car2sim",
+                    "conversion_provenance_version": 2,
                 }
             },
             "lidar-sweeps",

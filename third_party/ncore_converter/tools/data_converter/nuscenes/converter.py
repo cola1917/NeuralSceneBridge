@@ -54,6 +54,7 @@ from ncore.impl.data.v4.components import (
 from ncore.impl.data.v4.types import ComponentGroupAssignments
 from ncore.impl.data_converter.base import FileBasedDataConverter, FileBasedDataConverterConfig
 from tools.data_converter.cli import cli
+from tools.data_converter.nuscenes.contract import NUREC_TRACK_LABEL_SOURCE
 from tools.data_converter.nuscenes.utils import (
     CAMERA_MAP,
     LIDAR_CHANNEL,
@@ -291,8 +292,10 @@ class NuScenesConverter4(FileBasedDataConverter):
                 "nuscenes_scene_token": scene_token,
                 "nuscenes_scene_name": scene_name,
                 "cuboid_sampling": self._cuboid_sampling,
+                "cuboid_label_source": NUREC_TRACK_LABEL_SOURCE,
+                "cuboid_class_schema": "nre-26.04-car2sim",
                 "lidar_model_resolution": self._lidar_model_resolution,
-                "conversion_provenance_version": 1,
+                "conversion_provenance_version": 2,
             },
         )
 
@@ -937,7 +940,7 @@ class NuScenesConverter4(FileBasedDataConverter):
                         reference_frame_id="world_global",
                         reference_frame_timestamp_us=timestamp_us,
                         bbox3=bbox3,
-                        source=LabelSource.EXTERNAL,
+                        source=LabelSource[NUREC_TRACK_LABEL_SOURCE],
                     )
                 )
 
