@@ -18,7 +18,7 @@ if [[ "${OUTPUT_DIR}" = /* ]]; then
 else
   OUTPUT_ABS="${REPO_ROOT}/${OUTPUT_DIR}"
 fi
-EXPECTED_CAMERA_IDS="${EXPECTED_CAMERA_IDS:-camera_front,camera_front_left,camera_front_right}"
+EXPECTED_CAMERA_IDS="${EXPECTED_CAMERA_IDS:-${CAMERA_IDS:-camera_front,camera_front_left,camera_front_right}}"
 EXPECTED_GLOBAL_STEP="${EXPECTED_GLOBAL_STEP:-1000}"
 EXPECTED_SAMPLES_PER_EPOCH="${EXPECTED_SAMPLES_PER_EPOCH:-1000}"
 EXPECTED_MAX_EPOCHS="${EXPECTED_MAX_EPOCHS:-1}"
@@ -199,7 +199,6 @@ CANDIDATE_RUNS=0
 VALID_RUNS=0
 for run_dir in "${OUTPUT_ABS}"/*; do
   [[ -d "${run_dir}" ]] || continue
-  CANDIDATE_RUNS=$((CANDIDATE_RUNS + 1))
 
   usdz="${run_dir}/artifacts/last.usdz"
   if [[ ! -e "${usdz}" ]]; then
@@ -207,6 +206,14 @@ for run_dir in "${OUTPUT_ABS}"/*; do
   fi
   config="${run_dir}/config/parsed.yaml"
   checkpoint="${run_dir}/checkpoints/last.ckpt"
+
+  # Output roots may also contain operational directories such as launcher/
+  # and logs/. Only directories with at least one NuRec artifact marker are
+  # candidate runs; unrelated state must not dilute the acceptance result.
+  if [[ ! -e "${usdz}" && ! -e "${config}" && ! -e "${checkpoint}" ]]; then
+    continue
+  fi
+  CANDIDATE_RUNS=$((CANDIDATE_RUNS + 1))
 
   echo "Checking NuRec run: ${run_dir}"
   missing=0

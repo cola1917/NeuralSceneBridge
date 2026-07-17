@@ -118,6 +118,11 @@ Bash:
 bash scripts/run_ncore_nuscenes_converter.sh
 ```
 
+The project wrapper defaults `CUBOID_SAMPLING=lidar-sweeps` so dynamic cuboids
+are interpolated at every LiDAR sweep. Set `CUBOID_SAMPLING=keyframes` only to
+reproduce the source annotation cadence. Dense cuboids require rebuilding the
+NCore/NuRec artifact; they do not repair an already-trained USDZ at runtime.
+
 The wrapper can resolve either selector for manual debugging, but shared jobs
 and the default path use the native nuScenes scene token. Set exactly one when
 overriding the default:
@@ -144,6 +149,7 @@ python -m tools.data_converter.nuscenes.main \
   nuscenes-v4 \
   --version v1.0-mini \
   --scene-token cc8c0bf57f984915a77078b10eb33198 \
+  --cuboid-sampling lidar-sweeps \
   --store-type itar \
   --profile separate-sensors \
   --sequence-meta

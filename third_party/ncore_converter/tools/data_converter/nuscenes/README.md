@@ -49,6 +49,7 @@ bazel run //tools/data_converter/nuscenes -- \
 | `--store-type` | itar | Output store format (itar or directory) |
 | `--profile` | separate-sensors | Component group assignment profile |
 | `--sequence-meta/--no-sequence-meta` | enabled | Generate sequence meta JSON |
+| `--cuboid-sampling` | keyframes | `keyframes` preserves source cadence; `lidar-sweeps` interpolates cuboids at every LiDAR sweep |
 | `--lidar-model-source` | empirical | Model derivation: `empirical` (from data) or `nominal` (from HDL-32E spec) |
 | `--lidar-model-resolution` | 4 | Model column resolution factor (1/2/4). Higher = finer alignment. |
 | `--lidar-model-optimization-passes` | 1 | Multi-frame optimization iterations (0 to disable) |
@@ -82,8 +83,10 @@ far-range (> 20 m) angular error, measured with `//tools:ncore_evaluate_lidar_mo
     to 4x column resolution, reducing alignment quantization from ~0.09 to ~0.02 deg.
   - *Optimization* (`--lidar-model-optimization-passes 1`): multi-frame median
     correction of azimuths and offsets.
-- **Cuboid annotations**: Stored in the world coordinate frame. Only keyframe annotations
-  are included.
+- **Cuboid annotations**: Stored in the world coordinate frame. `keyframes` stores only
+  source annotations. `lidar-sweeps` calls the nuScenes interpolation path for every
+  LiDAR sweep (linear translation and quaternion SLERP), which is useful when a
+  reconstruction needs a denser dynamic-object trajectory.
 
 ## Testing
 

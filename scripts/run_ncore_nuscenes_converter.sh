@@ -9,6 +9,7 @@ SCENE_NAME="${SCENE_NAME:-}"
 SCENE_TOKEN="${SCENE_TOKEN:-}"
 STORE_TYPE="${STORE_TYPE:-itar}"
 PROFILE="${PROFILE:-separate-sensors}"
+CUBOID_SAMPLING="${CUBOID_SAMPLING:-lidar-sweeps}"
 LIDAR_MODEL_RESOLUTION="${LIDAR_MODEL_RESOLUTION:-2}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -42,5 +43,6 @@ docker run --rm \
   "${SCENE_SELECTOR[@]}" \
   --store-type "${STORE_TYPE}" \
   --profile "${PROFILE}" \
+  --cuboid-sampling "${CUBOID_SAMPLING}" \
   --lidar-model-resolution "${LIDAR_MODEL_RESOLUTION}" \
   --sequence-meta

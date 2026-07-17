@@ -100,6 +100,7 @@ class TestNuScenesConverter(unittest.TestCase):
             store_type=cls.store_type,
             component_group_profile="separate-sensors",
             store_sequence_meta=True,
+            cuboid_sampling="lidar-sweeps",
         )
         NuScenesConverter4.convert(config)
 
@@ -393,6 +394,29 @@ class TestNuScenesConverter(unittest.TestCase):
         self.assertIsInstance(obs.track_id, str)
         self.assertIsInstance(obs.class_id, str)
         self.assertEqual(obs.reference_frame_id, "world_global")
+
+        # Dense mode must add at least one observation between source keyframes.
+        nusc = get_nuscenes(version=self.nuscenes_version, dataroot=self.nuscenes_dir)
+        scene = nusc.get("scene", self.scene_token)
+        non_keyframe_timestamps = set()
+        sample_token = scene["first_sample_token"]
+        while sample_token:
+            sample = nusc.get("sample", sample_token)
+            lidar_sd = nusc.get("sample_data", sample["data"]["LIDAR_TOP"])
+            sweep_token = lidar_sd["prev"]
+            while sweep_token:
+                sweep = nusc.get("sample_data", sweep_token)
+                if not sweep["is_key_frame"]:
+                    non_keyframe_timestamps.add(sweep["timestamp"])
+                sweep_token = sweep["prev"]
+            sample_token = sample["next"]
+
+        if non_keyframe_timestamps:
+            observation_timestamps = {obs.timestamp_us for obs in observations}
+            self.assertTrue(
+                observation_timestamps & non_keyframe_timestamps,
+                "lidar-sweeps mode did not store interpolated non-keyframe cuboids",
+            )
 
     # --- Sequence Meta --------------------------------------------------------
 

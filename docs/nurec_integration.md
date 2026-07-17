@@ -57,6 +57,11 @@ bash scripts/setup_ncore_images.sh
 bash scripts/run_ncore_nuscenes_converter.sh
 ```
 
+For the closed-loop actor rebuild this wrapper uses
+`CUBOID_SAMPLING=lidar-sweeps`. The vendored converter itself remains backwards
+compatible (`keyframes` by default); the formal project wrapper opts into dense
+interpolated tracks explicitly.
+
 Inspect `outputs/ncore` and update `DATASET_PATH` in
 `config/nurec-smoke.env` to the generated NCore `.json` manifest name.
 
@@ -112,6 +117,33 @@ A complete NuRec run contains:
 <RUN-ID>/config/parsed.yaml
 <RUN-ID>/checkpoints/last.ckpt
 ```
+
+## 9. Render A Trained Scene
+
+Use the official NuRec container to render the trained neural scene. The
+launcher defaults to the strict 1000-step output, renders every tenth frame
+from `camera_front`, and writes a lightweight PNG preview without modifying the
+training artifacts:
+
+```bash
+bash scripts/render_nurec_result.sh
+```
+
+Override the defaults with environment variables. For example, render all
+three trained cameras at a denser frame interval:
+
+```bash
+RENDER_CAMERA_IDS=camera_front,camera_front_left,camera_front_right \
+FRAME_STEP=5 \
+IMAGE_SCALE=0.5 \
+RENDER_DIR=outputs/nurec_1000step_preview_3cam \
+  bash scripts/render_nurec_result.sh
+```
+
+The script fails if the output directory is already non-empty. Set
+`ALLOW_NONEMPTY_OUTPUT=1` only when intentionally resuming into an existing
+directory. Set `ARTIFACT_PATH` when the selected NuRec output contains more
+than one run.
 
 ## Local Checks
 

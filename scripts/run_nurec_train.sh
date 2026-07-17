@@ -13,21 +13,35 @@ if [[ -f "${ENV_FILE}" ]]; then
 fi
 
 NUREC_IMAGE="${NUREC_IMAGE:-nvcr.io/nvidia/nre/nre-ga:26.04}"
+MODE="${MODE:-train}"
 DATASET_DIR="${DATASET_DIR:-outputs/ncore}"
 DATASET_PATH="${DATASET_PATH:-}"
 OUTPUT_DIR="${OUTPUT_DIR:-outputs/nurec_smoke}"
 CACHE_DIR="${CACHE_DIR:-.cache/nurec}"
 CAMERA_IDS="${CAMERA_IDS:-camera_front,camera_front_left,camera_front_right}"
 LIDAR_IDS="${LIDAR_IDS:-lidar_top}"
+VAL_CAMERA_IDS="${VAL_CAMERA_IDS:-}"
+VAL_LIDAR_IDS="${VAL_LIDAR_IDS:-}"
 CONFIG_NAME="${CONFIG_NAME:-configs/apps/prod/Hyperion-8.1/car2sim_6cam.yaml}"
 MAX_EPOCHS="${MAX_EPOCHS:-1}"
 SAMPLES_PER_EPOCH="${SAMPLES_PER_EPOCH:-}"
 SHM_SIZE="${SHM_SIZE:-32g}"
 GPUS="${GPUS:-all}"
 
+case "${MODE}" in
+  train|trainval) ;;
+  *)
+    echo "MODE must be train or trainval, got: ${MODE}" >&2
+    exit 1
+    ;;
+esac
+
 if [[ -z "${NGC_API_KEY:-}" ]]; then
-  echo "NGC_API_KEY is not set." >&2
-  exit 1
+  if ! docker image inspect "${NUREC_IMAGE}" >/dev/null 2>&1; then
+    echo "NGC_API_KEY is not set and the NuRec image is not available locally." >&2
+    exit 1
+  fi
+  echo "NGC_API_KEY is not set; using the already-pulled local NuRec image." >&2
 fi
 
 if [[ -z "${DATASET_PATH}" ]]; then
@@ -76,15 +90,24 @@ fi
 
 mkdir -p "${OUTPUT_ABS}" "${CACHE_ABS}"
 
-DOCKER_ENV=(--env NGC_API_KEY)
+DOCKER_ENV=()
+if [[ -n "${NGC_API_KEY:-}" ]]; then
+  DOCKER_ENV+=(--env NGC_API_KEY)
+fi
 if [[ -n "${CUDA_VISIBLE_DEVICES:-}" ]]; then
   DOCKER_ENV+=(--env CUDA_VISIBLE_DEVICES)
 fi
 
-echo "Starting NuRec smoke training:"
+echo "Starting NuRec ${MODE}:"
 echo "  manifest: ${MANIFEST_ABS}"
 echo "  cameras: ${CAMERA_IDS}"
 echo "  lidar: ${LIDAR_IDS}"
+if [[ -n "${VAL_CAMERA_IDS}" ]]; then
+  echo "  validation cameras: ${VAL_CAMERA_IDS}"
+fi
+if [[ -n "${VAL_LIDAR_IDS}" ]]; then
+  echo "  validation lidar: ${VAL_LIDAR_IDS}"
+fi
 echo "  epochs: ${MAX_EPOCHS}"
 if [[ -n "${SAMPLES_PER_EPOCH}" ]]; then
   echo "  samples per epoch: ${SAMPLES_PER_EPOCH}"
@@ -100,6 +123,12 @@ DATASET_ARGS=()
 if [[ -n "${SAMPLES_PER_EPOCH}" ]]; then
   DATASET_ARGS+=("dataset.n_samples_per_epoch=${SAMPLES_PER_EPOCH}")
 fi
+if [[ -n "${VAL_CAMERA_IDS}" ]]; then
+  DATASET_ARGS+=("dataset.val_camera_ids=[${VAL_CAMERA_IDS}]")
+fi
+if [[ -n "${VAL_LIDAR_IDS}" ]]; then
+  DATASET_ARGS+=("dataset.val_lidar_ids=[${VAL_LIDAR_IDS}]")
+fi
 
 docker run --shm-size="${SHM_SIZE}" --rm --gpus "${GPUS}" \
   "${DOCKER_ENV[@]}" \
@@ -107,7 +136,7 @@ docker run --shm-size="${SHM_SIZE}" --rm --gpus "${GPUS}" \
   --volume "${OUTPUT_ABS}:/workdir/output" \
   --volume "${CACHE_ABS}:/home/.cache" \
   "${NUREC_IMAGE}" \
-  mode=train \
+  "mode=${MODE}" \
   out_dir=/workdir/output \
   --config-name="${CONFIG_NAME}" \
   "dataset.path=/workdir/dataset/${DATASET_PATH}" \

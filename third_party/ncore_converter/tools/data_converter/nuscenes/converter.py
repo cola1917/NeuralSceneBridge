@@ -96,6 +96,9 @@ class NuScenesConverter4Config(FileBasedDataConverterConfig):
     store_type: Literal["itar", "directory"] = "itar"
     component_group_profile: Literal["default", "separate-sensors", "separate-all"] = "separate-sensors"
     store_sequence_meta: bool = True
+    # Keep the library default compatible with the source annotation cadence.
+    # Closed-loop reconstruction builds can opt into dense, interpolated tracks.
+    cuboid_sampling: Literal["keyframes", "lidar-sweeps"] = "keyframes"
     # Defaults below match the CLI options (see nuscenes_v4) and the README so a
     # programmatically-constructed config behaves the same as the command line.
     lidar_model_optimization_passes: int = 1
@@ -122,8 +125,9 @@ class NuScenesConverter4(FileBasedDataConverter):
       Source data is motion-compensated; we decompensate to raw measurements before
       storing. Structured lidar model parameters (elevation/azimuth per beam/column)
       are derived from the first frame's geometry.
-    - Cuboid annotations: Stored in the world coordinate frame. For non-keyframe
-      sweeps, box positions are linearly interpolated between bracketing keyframes.
+    - Cuboid annotations: Stored in the world coordinate frame. The default stores
+      source keyframes only; ``cuboid_sampling=\"lidar-sweeps\"`` additionally stores
+      non-keyframe sweeps by interpolating between bracketing keyframes.
     """
 
     def __init__(self, config: NuScenesConverter4Config) -> None:
@@ -132,6 +136,7 @@ class NuScenesConverter4(FileBasedDataConverter):
         self.component_group_profile = config.component_group_profile
         self.store_type = config.store_type
         self.store_sequence_meta = config.store_sequence_meta
+        self._cuboid_sampling = config.cuboid_sampling
         self._lidar_model_optimization_passes = config.lidar_model_optimization_passes
         self._lidar_model_source = config.lidar_model_source
         self._lidar_model_resolution = config.lidar_model_resolution
@@ -874,8 +879,9 @@ class NuScenesConverter4(FileBasedDataConverter):
     ) -> None:
         """Decode nuScenes 3D annotations and store as cuboid track observations.
 
-        Annotations are stored in the world coordinate frame. For non-keyframe sweeps,
-        box positions are interpolated between bracketing keyframes.
+        Annotations are stored in the world coordinate frame. In ``lidar-sweeps``
+        mode, non-keyframe positions and orientations are interpolated by
+        :func:`get_boxes_for_sample_data`.
         """
         cuboid_observations: List[CuboidTrackObservation] = []
 
@@ -884,8 +890,7 @@ class NuScenesConverter4(FileBasedDataConverter):
             total=len(lidar_sweep_tokens),
             desc="Process cuboids",
         ):
-            # Only process keyframes (annotations are defined at keyframes)
-            if not sd["is_key_frame"]:
+            if self._cuboid_sampling == "keyframes" and not sd["is_key_frame"]:
                 continue
 
             boxes = get_boxes_for_sample_data(nusc, token)
@@ -991,6 +996,17 @@ class NuScenesConverter4(FileBasedDataConverter):
     "--sequence-meta/--no-sequence-meta",
     default=True,
     help="Generate sequence meta-data JSON?",
+)
+@click.option(
+    "cuboid_sampling",
+    "--cuboid-sampling",
+    type=click.Choice(["keyframes", "lidar-sweeps"], case_sensitive=False),
+    default="keyframes",
+    show_default=True,
+    help=(
+        "Cuboid observation cadence. 'keyframes' preserves source annotations; "
+        "'lidar-sweeps' interpolates cuboids at every lidar sweep."
+    ),
 )
 @click.option(
     "lidar_model_optimization_passes",
