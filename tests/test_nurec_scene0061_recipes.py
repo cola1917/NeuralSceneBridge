@@ -4,6 +4,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SMOKE = ROOT / "config" / "nurec-scene0061-renderable-lidar-smoke-v3.env"
+SMOKE_RETRY = ROOT / "config" / "nurec-scene0061-renderable-lidar-smoke-v3-attempt002.env"
 FORMAL = ROOT / "config" / "nurec-scene0061-renderable-lidar-formal-v3.env"
 
 
@@ -20,7 +21,7 @@ def _assignments(path):
 
 class NuRecScene0061RecipesTests(unittest.TestCase):
     def test_smoke_and_formal_are_renderable_lidar_recipes(self):
-        for path in (SMOKE, FORMAL):
+        for path in (SMOKE, SMOKE_RETRY, FORMAL):
             values = _assignments(path)
             self.assertEqual(values["REQUIRE_LIDAR_SUPERVISION"], "1")
             self.assertEqual(values["REQUIRE_RENDERABLE_LIDAR"], "1")
@@ -32,8 +33,11 @@ class NuRecScene0061RecipesTests(unittest.TestCase):
 
     def test_smoke_and_formal_have_separate_immutable_outputs_and_budgets(self):
         smoke = _assignments(SMOKE)
+        smoke_retry = _assignments(SMOKE_RETRY)
         formal = _assignments(FORMAL)
         self.assertNotEqual(smoke["OUTPUT_DIR"], formal["OUTPUT_DIR"])
+        self.assertNotEqual(smoke["OUTPUT_DIR"], smoke_retry["OUTPUT_DIR"])
+        self.assertTrue(smoke_retry["OUTPUT_DIR"].endswith("attempt_002"))
         self.assertEqual(smoke["SAMPLES_PER_EPOCH"], "100")
         self.assertEqual(smoke["EXPECTED_GLOBAL_STEP"], "100")
         self.assertEqual(formal["SAMPLES_PER_EPOCH"], "40000")
