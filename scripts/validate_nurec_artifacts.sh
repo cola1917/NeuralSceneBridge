@@ -33,6 +33,11 @@ EXPECTED_MIN_LIDAR_RAYS="${EXPECTED_MIN_LIDAR_RAYS:-1}"
 EXPECTED_MIN_LIDAR_SAMPLE_RATIO="${EXPECTED_MIN_LIDAR_SAMPLE_RATIO:-0.000001}"
 EXPECTED_MIN_LIDAR_LOSS_WEIGHT="${EXPECTED_MIN_LIDAR_LOSS_WEIGHT:-0.000001}"
 EXPECTED_VAL_LIDAR="${EXPECTED_VAL_LIDAR:-${VAL_LIDAR:-0}}"
+REQUIRE_LIDAR_VALIDATION_EVIDENCE="${REQUIRE_LIDAR_VALIDATION_EVIDENCE:-0}"
+EXPECTED_REQUIRED_LIDAR_METRICS="${EXPECTED_REQUIRED_LIDAR_METRICS:-test/chamfer_distance,test/raydrop_accuracy}"
+EXPECTED_MIN_LIDAR_VALIDATION_FRAMES="${EXPECTED_MIN_LIDAR_VALIDATION_FRAMES:-1}"
+EXPECTED_MIN_LIDAR_PLY_PAIRS="${EXPECTED_MIN_LIDAR_PLY_PAIRS:-1}"
+ALLOW_NRE_2604_LIDAR_GROUPING_BUG="${ALLOW_NRE_2604_LIDAR_GROUPING_BUG:-0}"
 VALIDATION_BACKEND="${NUREC_VALIDATION_BACKEND:-auto}"
 VALIDATION_IMAGE="${NUREC_VALIDATION_IMAGE:-${NUREC_IMAGE:-nvcr.io/nvidia/nre/nre-ga:26.04}}"
 
@@ -61,10 +66,17 @@ if [[ "${REQUIRE_DYNAMIC_TRACKS}" != "0" && "${REQUIRE_DYNAMIC_TRACKS}" != "1" ]
   echo "REQUIRE_DYNAMIC_TRACKS must be 0 or 1, got: ${REQUIRE_DYNAMIC_TRACKS}" >&2
   exit 1
 fi
-for variable in REQUIRE_LIDAR_SUPERVISION EXPECTED_VAL_LIDAR; do
+for variable in REQUIRE_LIDAR_SUPERVISION EXPECTED_VAL_LIDAR REQUIRE_LIDAR_VALIDATION_EVIDENCE ALLOW_NRE_2604_LIDAR_GROUPING_BUG; do
   value="${!variable}"
   if [[ "${value}" != "0" && "${value}" != "1" ]]; then
     echo "${variable} must be 0 or 1, got: ${value}" >&2
+    exit 1
+  fi
+done
+for variable in EXPECTED_MIN_LIDAR_VALIDATION_FRAMES EXPECTED_MIN_LIDAR_PLY_PAIRS; do
+  value="${!variable}"
+  if [[ ! "${value}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "${variable} must be a positive integer, got: ${value}" >&2
     exit 1
   fi
 done
@@ -298,6 +310,39 @@ validate_dynamic_tracks() {
     --min-pedestrians "${EXPECTED_MIN_USDZ_PEDESTRIANS}"
 }
 
+validate_lidar_evidence() {
+  local run_dir="$1"
+  local metrics="${run_dir}/val/metrics.yaml"
+  local -a bug_flag=()
+  if [[ "${ALLOW_NRE_2604_LIDAR_GROUPING_BUG}" == "1" ]]; then
+    bug_flag+=(--allow-nre-2604-lidar-grouping-bug)
+  fi
+
+  if [[ ! -s "${metrics}" ]]; then
+    echo "LiDAR evidence gate failed: missing or empty ${metrics}" >&2
+    return 1
+  fi
+
+  if [[ "${VALIDATOR_KIND}" == "host" ]]; then
+    python3 "${SCRIPT_DIR}/validate_nurec_lidar_metrics.py" "${metrics}" \
+      --required-metrics "${EXPECTED_REQUIRED_LIDAR_METRICS}" \
+      --min-frame-samples "${EXPECTED_MIN_LIDAR_VALIDATION_FRAMES}" \
+      --min-ply-pairs "${EXPECTED_MIN_LIDAR_PLY_PAIRS}" \
+      "${bug_flag[@]}"
+  else
+    docker run --rm --entrypoint /bin/bash \
+      --volume "${run_dir}:/nurec-run:ro" \
+      --volume "${SCRIPT_DIR}:/validator:ro" \
+      "${VALIDATION_IMAGE}" -lc \
+      'export RUNFILES_DIR=/app/run.runfiles; source <(sed "/# Call obfuscated target/,\$d" /app/run); exec python3 /validator/validate_nurec_lidar_metrics.py "$@"' \
+      bash "/nurec-run/val/metrics.yaml" \
+      --required-metrics "${EXPECTED_REQUIRED_LIDAR_METRICS}" \
+      --min-frame-samples "${EXPECTED_MIN_LIDAR_VALIDATION_FRAMES}" \
+      --min-ply-pairs "${EXPECTED_MIN_LIDAR_PLY_PAIRS}" \
+      "${bug_flag[@]}"
+  fi
+}
+
 echo "NuRec acceptance gate:"
 echo "  cameras: ${EXPECTED_CAMERA_IDS}"
 echo "  samples per epoch: ${EXPECTED_SAMPLES_PER_EPOCH}"
@@ -306,10 +351,16 @@ echo "  checkpoint global_step: ${EXPECTED_GLOBAL_STEP}"
 echo "  metadata backend: ${VALIDATOR_KIND}"
 echo "  require dynamic USDZ tracks: ${REQUIRE_DYNAMIC_TRACKS}"
 echo "  require lidar supervision: ${REQUIRE_LIDAR_SUPERVISION}"
+echo "  require lidar validation evidence: ${REQUIRE_LIDAR_VALIDATION_EVIDENCE}"
 if [[ "${REQUIRE_LIDAR_SUPERVISION}" == "1" ]]; then
   echo "  lidar ids: ${EXPECTED_LIDAR_IDS}"
   echo "  minimum lidar rays/ratio/loss: ${EXPECTED_MIN_LIDAR_RAYS}/${EXPECTED_MIN_LIDAR_SAMPLE_RATIO}/${EXPECTED_MIN_LIDAR_LOSS_WEIGHT}"
   echo "  validate lidar: ${EXPECTED_VAL_LIDAR}"
+fi
+if [[ "${REQUIRE_LIDAR_VALIDATION_EVIDENCE}" == "1" ]]; then
+  echo "  required lidar metrics: ${EXPECTED_REQUIRED_LIDAR_METRICS}"
+  echo "  minimum lidar validation frames/PLY pairs: ${EXPECTED_MIN_LIDAR_VALIDATION_FRAMES}/${EXPECTED_MIN_LIDAR_PLY_PAIRS}"
+  echo "  allow audited NRE 26.04 lidar grouping bug: ${ALLOW_NRE_2604_LIDAR_GROUPING_BUG}"
 fi
 if [[ "${REQUIRE_DYNAMIC_TRACKS}" == "1" ]]; then
   echo "  minimum USDZ tracks/vehicles/pedestrians: ${EXPECTED_MIN_USDZ_TRACKS}/${EXPECTED_MIN_USDZ_VEHICLES}/${EXPECTED_MIN_USDZ_PEDESTRIANS}"
@@ -367,6 +418,15 @@ for run_dir in "${OUTPUT_ABS}"/*; do
     if ! validation_output="$(validate_dynamic_tracks "${usdz}" 2>&1)"; then
       printf '%s\n' "${validation_output}"
       echo "  result: FAIL (dynamic-track gate)"
+      continue
+    fi
+    printf '%s\n' "${validation_output}"
+  fi
+
+  if [[ "${REQUIRE_LIDAR_VALIDATION_EVIDENCE}" == "1" ]]; then
+    if ! validation_output="$(validate_lidar_evidence "${run_dir}" 2>&1)"; then
+      printf '%s\n' "${validation_output}"
+      echo "  result: FAIL (LiDAR validation evidence gate)"
       continue
     fi
     printf '%s\n' "${validation_output}"

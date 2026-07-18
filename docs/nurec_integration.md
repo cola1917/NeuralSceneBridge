@@ -133,6 +133,17 @@ LiDAR rays alongside 6144 camera rays per batch. A log line such as
 post-processing constructor passes an empty LiDAR list because that
 camera-oriented post-processing has no per-LiDAR-frame parameters.
 
+For a formal train-and-validation run, also set
+`REQUIRE_LIDAR_VALIDATION_EVIDENCE=1`. This requires finite per-frame Chamfer
+and ray-drop metrics with timestamps plus matched predicted/ground-truth PLY
+pairs. NRE 26.04 has an audited exporter defect: `collect_metric()` resets its
+`is_lidar` argument to false, placing LiDAR samples below `per_camera` and
+leaving `per_lidar` empty. The gate rejects that layout by default. Set
+`ALLOW_NRE_2604_LIDAR_GROUPING_BUG=1` only for the audited 26.04 image; the
+acceptance output will retain the explicit
+`nre_26_04_vendor_grouping_bug` classification rather than silently relabeling
+the evidence.
+
 A complete NuRec run contains:
 
 ```text
