@@ -32,9 +32,12 @@ TRACK_LABEL_SOURCES="${TRACK_LABEL_SOURCES:-AUTOLABEL}"
 REQUIRE_DYNAMIC_TRACKS="${REQUIRE_DYNAMIC_TRACKS:-0}"
 NCORE_VALIDATION_IMAGE="${NCORE_VALIDATION_IMAGE:-}"
 REQUIRE_LIDAR_SUPERVISION="${REQUIRE_LIDAR_SUPERVISION:-0}"
+REQUIRE_RENDERABLE_LIDAR="${REQUIRE_RENDERABLE_LIDAR:-0}"
 N_TRAIN_SAMPLE_LIDAR_RAYS="${N_TRAIN_SAMPLE_LIDAR_RAYS:-}"
 RATIO_LIDAR_SAMPLES="${RATIO_LIDAR_SAMPLES:-}"
 LIDAR_LOSS_WEIGHT="${LIDAR_LOSS_WEIGHT:-}"
+LIDAR_INTENSITY_LOSS_WEIGHT="${LIDAR_INTENSITY_LOSS_WEIGHT:-}"
+LIDAR_RAYDROP_LOSS_WEIGHT="${LIDAR_RAYDROP_LOSS_WEIGHT:-}"
 
 case "${MODE}" in
   train|trainval) ;;
@@ -44,13 +47,17 @@ case "${MODE}" in
     ;;
 esac
 
-for variable in VAL_LIDAR REQUIRE_LIDAR_SUPERVISION; do
+for variable in VAL_LIDAR REQUIRE_LIDAR_SUPERVISION REQUIRE_RENDERABLE_LIDAR; do
   value="${!variable}"
   if [[ "${value}" != "0" && "${value}" != "1" ]]; then
     echo "${variable} must be 0 or 1, got: ${value}" >&2
     exit 1
   fi
 done
+if [[ "${REQUIRE_RENDERABLE_LIDAR}" == "1" && "${REQUIRE_LIDAR_SUPERVISION}" != "1" ]]; then
+  echo "REQUIRE_RENDERABLE_LIDAR=1 requires REQUIRE_LIDAR_SUPERVISION=1." >&2
+  exit 1
+fi
 if [[ "${VAL_LIDAR}" == "1" && "${MODE}" != "trainval" ]]; then
   echo "VAL_LIDAR=1 requires MODE=trainval." >&2
   exit 1
@@ -67,7 +74,15 @@ if [[ "${REQUIRE_LIDAR_SUPERVISION}" == "1" ]]; then
     fi
   done
 fi
-for variable in N_TRAIN_SAMPLE_LIDAR_RAYS RATIO_LIDAR_SAMPLES LIDAR_LOSS_WEIGHT; do
+if [[ "${REQUIRE_RENDERABLE_LIDAR}" == "1" ]]; then
+  for variable in LIDAR_INTENSITY_LOSS_WEIGHT LIDAR_RAYDROP_LOSS_WEIGHT; do
+    if [[ -z "${!variable}" ]]; then
+      echo "${variable} is required when REQUIRE_RENDERABLE_LIDAR=1." >&2
+      exit 1
+    fi
+  done
+fi
+for variable in N_TRAIN_SAMPLE_LIDAR_RAYS RATIO_LIDAR_SAMPLES LIDAR_LOSS_WEIGHT LIDAR_INTENSITY_LOSS_WEIGHT LIDAR_RAYDROP_LOSS_WEIGHT; do
   value="${!variable}"
   if [[ -n "${value}" ]] && ! awk -v value="${value}" 'BEGIN { exit !(value ~ /^[0-9]+([.][0-9]+)?$/ && value > 0) }'; then
     echo "${variable} must be a positive number, got: ${value}" >&2
@@ -173,6 +188,7 @@ if [[ -n "${VAL_LIDAR_IDS}" ]]; then
 fi
 echo "  validate lidar: ${VAL_LIDAR}"
 echo "  require lidar supervision: ${REQUIRE_LIDAR_SUPERVISION}"
+echo "  require renderable lidar: ${REQUIRE_RENDERABLE_LIDAR}"
 echo "  epochs: ${MAX_EPOCHS}"
 if [[ -n "${SAMPLES_PER_EPOCH}" ]]; then
   echo "  samples per epoch: ${SAMPLES_PER_EPOCH}"
@@ -212,6 +228,23 @@ LOSS_ARGS=()
 if [[ -n "${LIDAR_LOSS_WEIGHT}" ]]; then
   LOSS_ARGS+=("loss.lidar.lambda_=${LIDAR_LOSS_WEIGHT}")
 fi
+EXTRA_SIGNAL_ARGS=()
+if [[ "${REQUIRE_RENDERABLE_LIDAR}" == "1" ]]; then
+  # The production six-camera recipe enables camera semantic logits only.
+  # NuRec gRPC applies the learned raydrop output before returning LiDAR
+  # points, so geometry supervision alone can produce a valid-looking USDZ
+  # whose render_lidar RPC is always empty. Compose the official 26.04 signal
+  # configs into every rendered layer, including dynamic actors.
+  for layer in background road dynamic_rigids dynamic_deformables; do
+    EXTRA_SIGNAL_ARGS+=(
+      "model/gaussians/extra_signal@model.layers.${layer}.extra_signal=[semantic_logits,intensity,raydrop]"
+    )
+  done
+  LOSS_ARGS+=(
+    "loss.intensity.lambda_=${LIDAR_INTENSITY_LOSS_WEIGHT}"
+    "loss.raydrop.lambda_=${LIDAR_RAYDROP_LOSS_WEIGHT}"
+  )
+fi
 
 docker run --shm-size="${SHM_SIZE}" --rm --gpus "${GPUS}" \
   "${DOCKER_ENV[@]}" \
@@ -227,5 +260,6 @@ docker run --shm-size="${SHM_SIZE}" --rm --gpus "${GPUS}" \
   "dataset.lidar_ids=[${LIDAR_IDS}]" \
   dataset.aux_data=True \
   "${DATASET_ARGS[@]}" \
+  "${EXTRA_SIGNAL_ARGS[@]}" \
   "${LOSS_ARGS[@]}" \
   "${TRAINER_ARGS[@]}"

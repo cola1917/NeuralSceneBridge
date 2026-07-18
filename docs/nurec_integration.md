@@ -144,6 +144,17 @@ acceptance output will retain the explicit
 `nre_26_04_vendor_grouping_bug` classification rather than silently relabeling
 the evidence.
 
+`REQUIRE_LIDAR_SUPERVISION=1` proves that LiDAR geometry participates in
+training, but it does not by itself prove that `SensorsimService.render_lidar`
+can return points. Formal closed-loop assets therefore also set
+`REQUIRE_RENDERABLE_LIDAR=1`. The launcher composes NVIDIA's official
+`intensity` and `raydrop` extra-signal configs into the background, road,
+dynamic-rigid, and dynamic-deformable layers and requires positive intensity
+and raydrop losses. The artifact gate checks those layer signals and their
+derived `lidar_extra_signal_dim`; a geometry-only USDZ fails closed even when
+its validation PLY files are non-empty. Final acceptance must still issue a
+live gRPC LiDAR request and require a non-empty XYZ/intensity response.
+
 A complete NuRec run contains:
 
 ```text

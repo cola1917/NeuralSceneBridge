@@ -4,6 +4,7 @@ from pathlib import Path
 import pickle
 import shutil
 import subprocess
+import sys
 import tempfile
 import textwrap
 import unittest
@@ -59,6 +60,7 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
         lidar_ratio=1.0,
         lidar_loss=0.005,
         val_lidar=False,
+        renderable_lidar=False,
     ):
         config = {
             "trainer": {"max_epochs": max_epochs},
@@ -74,8 +76,30 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
                     "batch_sampler": {"ratio_lidar_samples": lidar_ratio}
                 },
             },
-            "loss": {"lidar": {"lambda_": lidar_loss}},
+            "loss": {
+                "lidar": {"lambda_": lidar_loss},
+                "intensity": {"lambda_": 1.0 if renderable_lidar else 0.0},
+                "raydrop": {"lambda_": 0.1 if renderable_lidar else 0.0},
+            },
         }
+        if renderable_lidar:
+            config["model"] = {"layers": {}}
+            for layer in ("background", "road", "dynamic_rigids", "dynamic_deformables"):
+                config["model"]["layers"][layer] = {
+                    "particle": {"lidar_extra_signal_dim": 3},
+                    "extra_signal": {
+                        "intensity": {
+                            "n_signal_dim": 1,
+                            "sensor_type": "lidar",
+                            "activation": "none",
+                        },
+                        "raydrop": {
+                            "n_signal_dim": 2,
+                            "sensor_type": "lidar",
+                            "activation": "softmax-channel-0",
+                        },
+                    },
+                }
         (self.run_dir / "config" / "parsed.yaml").write_text(
             json.dumps(config), encoding="utf-8"
         )
@@ -177,6 +201,26 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("expected dataset.val_lidar=True, found False", result.stdout)
 
+    def test_renderable_lidar_gate_accepts_extra_signals_and_losses(self):
+        self._write_config(renderable_lidar=True)
+        self.env["REQUIRE_LIDAR_SUPERVISION"] = "1"
+        self.env["REQUIRE_RENDERABLE_LIDAR"] = "1"
+
+        result = self._run()
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("background renderable lidar signals", result.stdout)
+        self.assertIn("config loss.raydrop.lambda_: 0.1", result.stdout)
+
+    def test_renderable_lidar_gate_rejects_geometry_only_recipe(self):
+        self.env["REQUIRE_LIDAR_SUPERVISION"] = "1"
+        self.env["REQUIRE_RENDERABLE_LIDAR"] = "1"
+
+        result = self._run()
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("config renderable lidar gate failed", result.stdout)
+
     def test_rejects_empty_artifact(self):
         (self.run_dir / "artifacts" / "last.usdz").write_bytes(b"")
         result = self._run()
@@ -236,6 +280,124 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("metadata backend: docker", result.stdout)
         self.assertIn("run --rm", docker_log.read_text(encoding="utf-8"))
+
+
+class RenderableLidarMetadataValidatorTests(unittest.TestCase):
+    def setUp(self):
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.root = Path(self.tempdir.name)
+        self.config_path = self.root / "parsed.yaml"
+        self.checkpoint_path = self.root / "last.ckpt"
+        with zipfile.ZipFile(self.checkpoint_path, "w") as archive:
+            archive.writestr(
+                "archive/data.pkl",
+                pickle.dumps({"global_step": 1000}, protocol=2),
+            )
+        fake_modules = self.root / "fake_modules"
+        fake_modules.mkdir()
+        (fake_modules / "yaml.py").write_text(
+            "import json\ndef safe_load(stream): return json.load(stream)\n",
+            encoding="utf-8",
+        )
+        self.env = os.environ.copy()
+        self.env["PYTHONPATH"] = str(fake_modules)
+
+    def tearDown(self):
+        self.tempdir.cleanup()
+
+    @staticmethod
+    def _validator_source():
+        source = SCRIPT.read_text(encoding="utf-8")
+        prefix = "PYTHON_VALIDATOR='"
+        start = source.index(prefix) + len(prefix)
+        end = source.index("'\n\nVALIDATOR_KIND=", start)
+        return source[start:end]
+
+    def _config(self, *, renderable):
+        config = {
+            "trainer": {"max_epochs": 1},
+            "dataset": {
+                "camera_ids": ["camera_front"],
+                "n_samples_per_epoch": 1000,
+                "lidar_ids": ["lidar_top"],
+                "train_lidar_ids": ["lidar_top"],
+                "n_train_sample_lidar_rays": 2048,
+                "val_lidar": True,
+                "samplers": {"batch_sampler": {"ratio_lidar_samples": 1.0}},
+            },
+            "loss": {
+                "lidar": {"lambda_": 0.005},
+                "intensity": {"lambda_": 1.0 if renderable else 0.0},
+                "raydrop": {"lambda_": 0.1 if renderable else 0.0},
+            },
+        }
+        if renderable:
+            layers = {}
+            for layer in ("background", "road", "dynamic_rigids", "dynamic_deformables"):
+                layers[layer] = {
+                    "particle": {"lidar_extra_signal_dim": 3},
+                    "extra_signal": {
+                        "intensity": {
+                            "n_signal_dim": 1,
+                            "sensor_type": "lidar",
+                            "activation": "none",
+                        },
+                        "raydrop": {
+                            "n_signal_dim": 2,
+                            "sensor_type": "lidar",
+                            "activation": "softmax-channel-0",
+                        },
+                    },
+                }
+            config["model"] = {"layers": layers}
+        self.config_path.write_text(json.dumps(config), encoding="utf-8")
+
+    def _run(self):
+        return subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                self._validator_source(),
+                str(self.config_path),
+                str(self.checkpoint_path),
+                "camera_front",
+                "1000",
+                "1000",
+                "1",
+                "1",
+                "lidar_top",
+                "2048",
+                "1.0",
+                "0.005",
+                "1",
+                "1",
+                "background,road,dynamic_rigids,dynamic_deformables",
+                "3",
+                "1.0",
+                "0.1",
+            ],
+            env=self.env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+
+    def test_accepts_all_official_renderable_lidar_signals(self):
+        self._config(renderable=True)
+
+        result = self._run()
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("dynamic_deformables renderable lidar signals", result.stdout)
+        self.assertIn("config loss.raydrop.lambda_: 0.1", result.stdout)
+
+    def test_rejects_geometry_only_lidar_config(self):
+        self._config(renderable=False)
+
+        result = self._run()
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("config renderable lidar gate failed", result.stderr)
 
 
 if __name__ == "__main__":

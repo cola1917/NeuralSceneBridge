@@ -28,10 +28,15 @@ EXPECTED_MIN_USDZ_TRACKS="${EXPECTED_MIN_USDZ_TRACKS:-1}"
 EXPECTED_MIN_USDZ_VEHICLES="${EXPECTED_MIN_USDZ_VEHICLES:-1}"
 EXPECTED_MIN_USDZ_PEDESTRIANS="${EXPECTED_MIN_USDZ_PEDESTRIANS:-1}"
 REQUIRE_LIDAR_SUPERVISION="${REQUIRE_LIDAR_SUPERVISION:-0}"
+REQUIRE_RENDERABLE_LIDAR="${REQUIRE_RENDERABLE_LIDAR:-0}"
 EXPECTED_LIDAR_IDS="${EXPECTED_LIDAR_IDS:-${LIDAR_IDS:-lidar_top}}"
 EXPECTED_MIN_LIDAR_RAYS="${EXPECTED_MIN_LIDAR_RAYS:-1}"
 EXPECTED_MIN_LIDAR_SAMPLE_RATIO="${EXPECTED_MIN_LIDAR_SAMPLE_RATIO:-0.000001}"
 EXPECTED_MIN_LIDAR_LOSS_WEIGHT="${EXPECTED_MIN_LIDAR_LOSS_WEIGHT:-0.000001}"
+EXPECTED_MIN_LIDAR_EXTRA_SIGNAL_DIM="${EXPECTED_MIN_LIDAR_EXTRA_SIGNAL_DIM:-3}"
+EXPECTED_MIN_LIDAR_INTENSITY_LOSS_WEIGHT="${EXPECTED_MIN_LIDAR_INTENSITY_LOSS_WEIGHT:-0.000001}"
+EXPECTED_MIN_LIDAR_RAYDROP_LOSS_WEIGHT="${EXPECTED_MIN_LIDAR_RAYDROP_LOSS_WEIGHT:-0.000001}"
+EXPECTED_LIDAR_EXTRA_SIGNAL_LAYERS="${EXPECTED_LIDAR_EXTRA_SIGNAL_LAYERS:-background,road,dynamic_rigids,dynamic_deformables}"
 EXPECTED_VAL_LIDAR="${EXPECTED_VAL_LIDAR:-${VAL_LIDAR:-0}}"
 REQUIRE_LIDAR_VALIDATION_EVIDENCE="${REQUIRE_LIDAR_VALIDATION_EVIDENCE:-0}"
 EXPECTED_REQUIRED_LIDAR_METRICS="${EXPECTED_REQUIRED_LIDAR_METRICS:-test/chamfer_distance,test/raydrop_accuracy}"
@@ -66,13 +71,17 @@ if [[ "${REQUIRE_DYNAMIC_TRACKS}" != "0" && "${REQUIRE_DYNAMIC_TRACKS}" != "1" ]
   echo "REQUIRE_DYNAMIC_TRACKS must be 0 or 1, got: ${REQUIRE_DYNAMIC_TRACKS}" >&2
   exit 1
 fi
-for variable in REQUIRE_LIDAR_SUPERVISION EXPECTED_VAL_LIDAR REQUIRE_LIDAR_VALIDATION_EVIDENCE ALLOW_NRE_2604_LIDAR_GROUPING_BUG; do
+for variable in REQUIRE_LIDAR_SUPERVISION REQUIRE_RENDERABLE_LIDAR EXPECTED_VAL_LIDAR REQUIRE_LIDAR_VALIDATION_EVIDENCE ALLOW_NRE_2604_LIDAR_GROUPING_BUG; do
   value="${!variable}"
   if [[ "${value}" != "0" && "${value}" != "1" ]]; then
     echo "${variable} must be 0 or 1, got: ${value}" >&2
     exit 1
   fi
 done
+if [[ "${REQUIRE_RENDERABLE_LIDAR}" == "1" && "${REQUIRE_LIDAR_SUPERVISION}" != "1" ]]; then
+  echo "REQUIRE_RENDERABLE_LIDAR=1 requires REQUIRE_LIDAR_SUPERVISION=1." >&2
+  exit 1
+fi
 for variable in EXPECTED_MIN_LIDAR_VALIDATION_FRAMES EXPECTED_MIN_LIDAR_PLY_PAIRS; do
   value="${!variable}"
   if [[ ! "${value}" =~ ^[1-9][0-9]*$ ]]; then
@@ -91,7 +100,11 @@ if [[ ! "${EXPECTED_MIN_LIDAR_RAYS}" =~ ^[0-9]+$ ]]; then
   echo "EXPECTED_MIN_LIDAR_RAYS must be a non-negative integer, got: ${EXPECTED_MIN_LIDAR_RAYS}" >&2
   exit 1
 fi
-for variable in EXPECTED_MIN_LIDAR_SAMPLE_RATIO EXPECTED_MIN_LIDAR_LOSS_WEIGHT; do
+if [[ ! "${EXPECTED_MIN_LIDAR_EXTRA_SIGNAL_DIM}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "EXPECTED_MIN_LIDAR_EXTRA_SIGNAL_DIM must be a positive integer, got: ${EXPECTED_MIN_LIDAR_EXTRA_SIGNAL_DIM}" >&2
+  exit 1
+fi
+for variable in EXPECTED_MIN_LIDAR_SAMPLE_RATIO EXPECTED_MIN_LIDAR_LOSS_WEIGHT EXPECTED_MIN_LIDAR_INTENSITY_LOSS_WEIGHT EXPECTED_MIN_LIDAR_RAYDROP_LOSS_WEIGHT; do
   value="${!variable}"
   if ! awk -v value="${value}" 'BEGIN { exit !(value ~ /^[0-9]+([.][0-9]+)?$/ && value >= 0) }'; then
     echo "${variable} must be a non-negative number, got: ${value}" >&2
@@ -118,6 +131,11 @@ min_lidar_rays = int(sys.argv[9])
 min_lidar_ratio = float(sys.argv[10])
 min_lidar_loss = float(sys.argv[11])
 expected_val_lidar = sys.argv[12] == "1"
+require_renderable_lidar = sys.argv[13] == "1"
+expected_signal_layers = [item.strip() for item in sys.argv[14].split(",") if item.strip()]
+min_lidar_extra_signal_dim = int(sys.argv[15])
+min_intensity_loss = float(sys.argv[16])
+min_raydrop_loss = float(sys.argv[17])
 
 def find_values(node, key, path=""):
     found = []
@@ -211,6 +229,83 @@ if require_lidar:
         )
     print(f"  config dataset.val_lidar: {actual_val_lidar!r}")
 
+if require_renderable_lidar:
+    signal_specs = {
+        "intensity": {
+            "n_signal_dim": 1,
+            "sensor_type": "lidar",
+            "activation": "none",
+        },
+        "raydrop": {
+            "n_signal_dim": 2,
+            "sensor_type": "lidar",
+            "activation": "softmax-channel-0",
+        },
+    }
+    model = config.get("model")
+    layers_config = model.get("layers") if isinstance(model, dict) else None
+    if not expected_signal_layers:
+        raise SystemExit(
+            "config renderable lidar gate failed: expected signal layer list is empty"
+        )
+    if not isinstance(layers_config, dict):
+        raise SystemExit(
+            "config renderable lidar gate failed: model.layers is missing or invalid"
+        )
+    for layer in expected_signal_layers:
+        layer_config = layers_config.get(layer)
+        if not isinstance(layer_config, dict):
+            raise SystemExit(
+                f"config renderable lidar gate failed: model layer {layer!r} is missing or invalid"
+            )
+        signals = layer_config.get("extra_signal")
+        if not isinstance(signals, dict):
+            raise SystemExit(
+                f"config renderable lidar gate failed: model layer {layer!r} has no extra_signal mapping"
+            )
+        for signal_name, expected in signal_specs.items():
+            signal = signals.get(signal_name)
+            if not isinstance(signal, dict):
+                raise SystemExit(
+                    f"config renderable lidar gate failed: model layer {layer!r} "
+                    f"has invalid {signal_name!r} signal {signal!r}"
+                )
+            for key, expected_value in expected.items():
+                if signal.get(key) != expected_value:
+                    raise SystemExit(
+                        "config renderable lidar gate failed: expected "
+                        f"model.layers.{layer}.extra_signal.{signal_name}.{key}="
+                        f"{expected_value!r}, found {signal.get(key)!r}"
+                    )
+        particle = layer_config.get("particle")
+        actual_dim = as_int(
+            particle.get("lidar_extra_signal_dim")
+            if isinstance(particle, dict)
+            else None
+        )
+        if actual_dim is None or actual_dim < min_lidar_extra_signal_dim:
+            raise SystemExit(
+                "config renderable lidar gate failed: expected "
+                f"model.layers.{layer}.particle.lidar_extra_signal_dim>="
+                f"{min_lidar_extra_signal_dim}, found {actual_dim!r}"
+            )
+        print(
+            f"  config model.layers.{layer} renderable lidar signals: "
+            f"intensity+raydrop, dim={actual_dim}"
+        )
+
+    for path, minimum in (
+        ("loss.intensity.lambda_", min_intensity_loss),
+        ("loss.raydrop.lambda_", min_raydrop_loss),
+    ):
+        actual = as_float(at_path(config, path))
+        if actual is None or actual < minimum:
+            raise SystemExit(
+                f"config renderable lidar gate failed: expected {path}>={minimum}, "
+                f"found {actual!r}"
+            )
+        print(f"  config {path}: {actual} (minimum {minimum})")
+
 def read_global_step(path):
     # PyTorch checkpoints are ZIP archives containing a pickle instruction
     # stream plus tensor blobs. Inspecting opcodes reads the scalar metadata
@@ -286,7 +381,11 @@ validate_metadata() {
       "${EXPECTED_GLOBAL_STEP}" "${EXPECTED_SAMPLES_PER_EPOCH}" "${EXPECTED_MAX_EPOCHS}" \
       "${REQUIRE_LIDAR_SUPERVISION}" "${EXPECTED_LIDAR_IDS}" \
       "${EXPECTED_MIN_LIDAR_RAYS}" "${EXPECTED_MIN_LIDAR_SAMPLE_RATIO}" \
-      "${EXPECTED_MIN_LIDAR_LOSS_WEIGHT}" "${EXPECTED_VAL_LIDAR}"
+      "${EXPECTED_MIN_LIDAR_LOSS_WEIGHT}" "${EXPECTED_VAL_LIDAR}" \
+      "${REQUIRE_RENDERABLE_LIDAR}" "${EXPECTED_LIDAR_EXTRA_SIGNAL_LAYERS}" \
+      "${EXPECTED_MIN_LIDAR_EXTRA_SIGNAL_DIM}" \
+      "${EXPECTED_MIN_LIDAR_INTENSITY_LOSS_WEIGHT}" \
+      "${EXPECTED_MIN_LIDAR_RAYDROP_LOSS_WEIGHT}"
   else
     docker run --rm --entrypoint /bin/bash \
       --volume "${run_dir}:/nurec-run:ro" \
@@ -298,7 +397,11 @@ validate_metadata() {
       "${EXPECTED_SAMPLES_PER_EPOCH}" "${EXPECTED_MAX_EPOCHS}" \
       "${REQUIRE_LIDAR_SUPERVISION}" "${EXPECTED_LIDAR_IDS}" \
       "${EXPECTED_MIN_LIDAR_RAYS}" "${EXPECTED_MIN_LIDAR_SAMPLE_RATIO}" \
-      "${EXPECTED_MIN_LIDAR_LOSS_WEIGHT}" "${EXPECTED_VAL_LIDAR}"
+      "${EXPECTED_MIN_LIDAR_LOSS_WEIGHT}" "${EXPECTED_VAL_LIDAR}" \
+      "${REQUIRE_RENDERABLE_LIDAR}" "${EXPECTED_LIDAR_EXTRA_SIGNAL_LAYERS}" \
+      "${EXPECTED_MIN_LIDAR_EXTRA_SIGNAL_DIM}" \
+      "${EXPECTED_MIN_LIDAR_INTENSITY_LOSS_WEIGHT}" \
+      "${EXPECTED_MIN_LIDAR_RAYDROP_LOSS_WEIGHT}"
   fi
 }
 
@@ -351,11 +454,17 @@ echo "  checkpoint global_step: ${EXPECTED_GLOBAL_STEP}"
 echo "  metadata backend: ${VALIDATOR_KIND}"
 echo "  require dynamic USDZ tracks: ${REQUIRE_DYNAMIC_TRACKS}"
 echo "  require lidar supervision: ${REQUIRE_LIDAR_SUPERVISION}"
+echo "  require renderable lidar: ${REQUIRE_RENDERABLE_LIDAR}"
 echo "  require lidar validation evidence: ${REQUIRE_LIDAR_VALIDATION_EVIDENCE}"
 if [[ "${REQUIRE_LIDAR_SUPERVISION}" == "1" ]]; then
   echo "  lidar ids: ${EXPECTED_LIDAR_IDS}"
   echo "  minimum lidar rays/ratio/loss: ${EXPECTED_MIN_LIDAR_RAYS}/${EXPECTED_MIN_LIDAR_SAMPLE_RATIO}/${EXPECTED_MIN_LIDAR_LOSS_WEIGHT}"
   echo "  validate lidar: ${EXPECTED_VAL_LIDAR}"
+fi
+if [[ "${REQUIRE_RENDERABLE_LIDAR}" == "1" ]]; then
+  echo "  renderable lidar layers: ${EXPECTED_LIDAR_EXTRA_SIGNAL_LAYERS}"
+  echo "  minimum lidar extra-signal dim: ${EXPECTED_MIN_LIDAR_EXTRA_SIGNAL_DIM}"
+  echo "  minimum intensity/raydrop loss: ${EXPECTED_MIN_LIDAR_INTENSITY_LOSS_WEIGHT}/${EXPECTED_MIN_LIDAR_RAYDROP_LOSS_WEIGHT}"
 fi
 if [[ "${REQUIRE_LIDAR_VALIDATION_EVIDENCE}" == "1" ]]; then
   echo "  required lidar metrics: ${EXPECTED_REQUIRED_LIDAR_METRICS}"
