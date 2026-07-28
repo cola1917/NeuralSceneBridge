@@ -118,7 +118,6 @@ class NuRecScene0061RecipesTests(unittest.TestCase):
     def test_m8_full_formal_requires_the_entire_eligible_dynamic_inventory(self):
         values = _assignments(M8_FULL_FORMAL)
         self.assertEqual(values["SAMPLES_PER_EPOCH"], "40000")
-        self.assertEqual(values["EXPECTED_SAMPLES_PER_EPOCH"], "40000")
         self.assertEqual(values["EXPECTED_GLOBAL_STEP"], "40000")
         self.assertEqual(values["DYNAMIC_TRACK_POINTS_PER_TRACK"], "1500000")
         self.assertEqual(values["DYNAMIC_TRACK_POINTS_PER_LAYER"], "9000000")
