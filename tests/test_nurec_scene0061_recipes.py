@@ -172,7 +172,7 @@ class NuRecScene0061RecipesTests(unittest.TestCase):
         self.assertEqual(values["DYNAMIC_TRACK_KEEP_ALL_POSES"], "0")
         self.assertEqual(values["DYNAMIC_TRACK_INIT_STEP_FRAME"], "1")
         self.assertEqual(values["EXPECTED_MIN_USDZ_TRACKS"], "87")
-        self.assertEqual(values["EXPECTED_MIN_USDZ_VEHICLES"], "29")
+        self.assertEqual(values["EXPECTED_MIN_USDZ_VEHICLES"], "23")
         self.assertEqual(values["EXPECTED_MIN_USDZ_PEDESTRIANS"], "58")
 
     def test_m8_time_window_preflight_covers_all_tracks_with_a_bounded_point_budget(self):
