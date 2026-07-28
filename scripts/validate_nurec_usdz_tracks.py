@@ -63,6 +63,7 @@ def validate_usdz(
     min_pedestrians: int,
     vehicle_classes: set[str],
     pedestrian_classes: set[str],
+    required_track_ids: set[str] | None = None,
 ) -> dict:
     try:
         with zipfile.ZipFile(usdz_path) as archive:
@@ -175,6 +176,11 @@ def validate_usdz(
         failures.append(f"vehicle tracks {vehicle_count} < required {min_vehicles}")
     if pedestrian_count < min_pedestrians:
         failures.append(f"pedestrian tracks {pedestrian_count} < required {min_pedestrians}")
+    missing_required_ids = sorted((required_track_ids or set()) - seen_ids)
+    if missing_required_ids:
+        failures.append(
+            "missing required track ids: " + ", ".join(missing_required_ids)
+        )
     if failures:
         raise ValidationError("dynamic-track thresholds failed: " + "; ".join(failures))
 
@@ -195,6 +201,7 @@ def validate_usdz(
             "min_total": min_total,
             "min_vehicles": min_vehicles,
             "min_pedestrians": min_pedestrians,
+            "required_track_ids": sorted(required_track_ids or set()),
         },
         "pass": True,
     }
@@ -207,6 +214,25 @@ def _nonnegative(value: str) -> int:
     return result
 
 
+def _required_track_ids_from_audit(path: Path) -> set[str]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValidationError(f"cannot read required-track audit {path}: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise ValidationError("required-track audit must be a JSON object")
+    contract = payload.get("contract")
+    track_ids = contract.get("selected_track_ids") if isinstance(contract, dict) else None
+    if not isinstance(track_ids, list) or not track_ids:
+        raise ValidationError(
+            "required-track audit must contain non-empty contract.selected_track_ids"
+        )
+    normalized = {str(item).strip() for item in track_ids}
+    if "" in normalized or len(normalized) != len(track_ids):
+        raise ValidationError("required-track audit contains empty or duplicate track ids")
+    return normalized
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("usdz", type=Path)
@@ -216,6 +242,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--vehicle-classes", type=_csv, default=_csv(DEFAULT_VEHICLE_CLASSES))
     parser.add_argument(
         "--pedestrian-classes", type=_csv, default=_csv(DEFAULT_PEDESTRIAN_CLASSES)
+    )
+    parser.add_argument(
+        "--required-track-ids-json",
+        type=Path,
+        help="NCore dynamic-track audit with contract.selected_track_ids that the USDZ must contain.",
     )
     parser.add_argument("--output-json", type=Path)
     args = parser.parse_args(argv)
@@ -228,6 +259,11 @@ def main(argv: list[str] | None = None) -> int:
             min_pedestrians=args.min_pedestrians,
             vehicle_classes=args.vehicle_classes,
             pedestrian_classes=args.pedestrian_classes,
+            required_track_ids=(
+                _required_track_ids_from_audit(args.required_track_ids_json)
+                if args.required_track_ids_json
+                else None
+            ),
         )
     except ValidationError as exc:
         print(f"NuRec USDZ dynamic-track validation failed: {exc}", file=sys.stderr)

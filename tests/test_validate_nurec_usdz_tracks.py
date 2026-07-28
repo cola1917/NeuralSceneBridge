@@ -84,6 +84,31 @@ class ValidateNuRecUsdzTracksTests(unittest.TestCase):
         self.assertIn("vehicle tracks 0 < required 1", result.stderr)
         self.assertIn("pedestrian tracks 0 < required 1", result.stderr)
 
+    def test_requires_exact_ncore_selected_track_ids(self):
+        self._write(_payload(_track("car-1", "automobile"), _track("ped-1", "pedestrian")))
+        audit = Path(self.tempdir.name) / "ncore_dynamic_tracks.json"
+        audit.write_text(
+            json.dumps({"contract": {"selected_track_ids": ["car-1", "ped-1"]}}),
+            encoding="utf-8",
+        )
+        result = self._run("--required-track-ids-json", str(audit))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout)["thresholds"]["required_track_ids"],
+            ["car-1", "ped-1"],
+        )
+
+    def test_rejects_missing_ncore_selected_track_id(self):
+        self._write(_payload(_track("car-1", "automobile"), _track("ped-1", "pedestrian")))
+        audit = Path(self.tempdir.name) / "ncore_dynamic_tracks.json"
+        audit.write_text(
+            json.dumps({"contract": {"selected_track_ids": ["car-1", "ped-1", "truck-1"]}}),
+            encoding="utf-8",
+        )
+        result = self._run("--required-track-ids-json", str(audit))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing required track ids: truck-1", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
