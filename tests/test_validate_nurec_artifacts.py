@@ -139,6 +139,14 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
         ) as archive:
             archive.writestr("sequence_tracks.json", json.dumps(payload))
 
+    def _write_ncore_track_audit(self, track_ids):
+        launcher = self.root / "outputs" / "launcher"
+        launcher.mkdir(exist_ok=True)
+        (launcher / "ncore_dynamic_tracks.json").write_text(
+            json.dumps({"contract": {"selected_track_ids": track_ids}}),
+            encoding="utf-8",
+        )
+
     def _run(self):
         return subprocess.run(
             ["bash", str(SCRIPT)],
@@ -241,6 +249,38 @@ class ValidateNuRecArtifactsTests(unittest.TestCase):
         result = self._run()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("result: FAIL (dynamic-track gate)", result.stdout)
+
+    def test_dynamic_gate_requires_ncore_track_closure_when_configured(self):
+        self._write_dynamic_usdz(["automobile", "pedestrian"])
+        self._write_ncore_track_audit(["track-0", "track-1"])
+        self.env.update(
+            {
+                "REQUIRE_DYNAMIC_TRACKS": "1",
+                "EXPECTED_MIN_USDZ_TRACKS": "2",
+                "EXPECTED_USDZ_TRACK_IDS_JSON": "launcher/ncore_dynamic_tracks.json",
+            }
+        )
+
+        result = self._run()
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('"required_track_ids": [', result.stdout)
+
+    def test_dynamic_gate_rejects_missing_ncore_track_id(self):
+        self._write_dynamic_usdz(["automobile", "pedestrian"])
+        self._write_ncore_track_audit(["track-0", "track-1", "missing-track"])
+        self.env.update(
+            {
+                "REQUIRE_DYNAMIC_TRACKS": "1",
+                "EXPECTED_MIN_USDZ_TRACKS": "2",
+                "EXPECTED_USDZ_TRACK_IDS_JSON": "launcher/ncore_dynamic_tracks.json",
+            }
+        )
+
+        result = self._run()
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("missing required track ids: missing-track", result.stdout)
 
     def test_strict_formal_gate_rejects_multiple_run_directories(self):
         shutil.copytree(self.run_dir, self.root / "outputs" / "second-run")

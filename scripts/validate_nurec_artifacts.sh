@@ -27,6 +27,7 @@ REQUIRE_DYNAMIC_TRACKS="${REQUIRE_DYNAMIC_TRACKS:-0}"
 EXPECTED_MIN_USDZ_TRACKS="${EXPECTED_MIN_USDZ_TRACKS:-1}"
 EXPECTED_MIN_USDZ_VEHICLES="${EXPECTED_MIN_USDZ_VEHICLES:-1}"
 EXPECTED_MIN_USDZ_PEDESTRIANS="${EXPECTED_MIN_USDZ_PEDESTRIANS:-1}"
+EXPECTED_USDZ_TRACK_IDS_JSON="${EXPECTED_USDZ_TRACK_IDS_JSON:-}"
 REQUIRE_LIDAR_SUPERVISION="${REQUIRE_LIDAR_SUPERVISION:-0}"
 REQUIRE_RENDERABLE_LIDAR="${REQUIRE_RENDERABLE_LIDAR:-0}"
 EXPECTED_LIDAR_IDS="${EXPECTED_LIDAR_IDS:-${LIDAR_IDS:-lidar_top}}"
@@ -49,6 +50,19 @@ VALIDATION_IMAGE="${NUREC_VALIDATION_IMAGE:-${NUREC_IMAGE:-nvcr.io/nvidia/nre/nr
 if [[ ! -d "${OUTPUT_ABS}" ]]; then
   echo "NuRec output directory not found: ${OUTPUT_ABS}" >&2
   exit 1
+fi
+if [[ -n "${EXPECTED_USDZ_TRACK_IDS_JSON}" ]]; then
+  if [[ "${EXPECTED_USDZ_TRACK_IDS_JSON}" = /* ]]; then
+    EXPECTED_USDZ_TRACK_IDS_JSON_ABS="${EXPECTED_USDZ_TRACK_IDS_JSON}"
+  else
+    EXPECTED_USDZ_TRACK_IDS_JSON_ABS="${OUTPUT_ABS}/${EXPECTED_USDZ_TRACK_IDS_JSON}"
+  fi
+  if [[ ! -f "${EXPECTED_USDZ_TRACK_IDS_JSON_ABS}" ]]; then
+    echo "Expected USDZ track-ID audit not found: ${EXPECTED_USDZ_TRACK_IDS_JSON_ABS}" >&2
+    exit 1
+  fi
+else
+  EXPECTED_USDZ_TRACK_IDS_JSON_ABS=""
 fi
 
 if [[ ! "${EXPECTED_GLOBAL_STEP}" =~ ^[0-9]+$ ]]; then
@@ -407,10 +421,15 @@ validate_metadata() {
 
 validate_dynamic_tracks() {
   local usdz="$1"
+  local -a required_ids_arg=()
+  if [[ -n "${EXPECTED_USDZ_TRACK_IDS_JSON_ABS}" ]]; then
+    required_ids_arg+=(--required-track-ids-json "${EXPECTED_USDZ_TRACK_IDS_JSON_ABS}")
+  fi
   python3 "${SCRIPT_DIR}/validate_nurec_usdz_tracks.py" "${usdz}" \
     --min-total "${EXPECTED_MIN_USDZ_TRACKS}" \
     --min-vehicles "${EXPECTED_MIN_USDZ_VEHICLES}" \
-    --min-pedestrians "${EXPECTED_MIN_USDZ_PEDESTRIANS}"
+    --min-pedestrians "${EXPECTED_MIN_USDZ_PEDESTRIANS}" \
+    "${required_ids_arg[@]}"
 }
 
 validate_lidar_evidence() {
@@ -473,6 +492,9 @@ if [[ "${REQUIRE_LIDAR_VALIDATION_EVIDENCE}" == "1" ]]; then
 fi
 if [[ "${REQUIRE_DYNAMIC_TRACKS}" == "1" ]]; then
   echo "  minimum USDZ tracks/vehicles/pedestrians: ${EXPECTED_MIN_USDZ_TRACKS}/${EXPECTED_MIN_USDZ_VEHICLES}/${EXPECTED_MIN_USDZ_PEDESTRIANS}"
+  if [[ -n "${EXPECTED_USDZ_TRACK_IDS_JSON_ABS}" ]]; then
+    echo "  required USDZ track-ID audit: ${EXPECTED_USDZ_TRACK_IDS_JSON_ABS}"
+  fi
 fi
 
 CANDIDATE_RUNS=0
