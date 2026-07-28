@@ -118,6 +118,7 @@ class NuRecScene0061RecipesTests(unittest.TestCase):
     def test_m8_full_formal_requires_the_entire_eligible_dynamic_inventory(self):
         values = _assignments(M8_FULL_FORMAL)
         self.assertEqual(values["SAMPLES_PER_EPOCH"], "40000")
+        self.assertEqual(values["EXPECTED_SAMPLES_PER_EPOCH"], "40000")
         self.assertEqual(values["EXPECTED_GLOBAL_STEP"], "40000")
         self.assertEqual(values["DYNAMIC_TRACK_POINTS_PER_TRACK"], "1500000")
         self.assertEqual(values["DYNAMIC_TRACK_POINTS_PER_LAYER"], "9000000")
@@ -168,11 +169,12 @@ class NuRecScene0061RecipesTests(unittest.TestCase):
         )
         self.assertTrue(values["OUTPUT_DIR"].endswith("attempt_017"))
         self.assertEqual(values["SAMPLES_PER_EPOCH"], "40000")
+        self.assertEqual(values["EXPECTED_SAMPLES_PER_EPOCH"], "40000")
         self.assertEqual(values["DYNAMIC_TRACK_KEEP_ALL_POSES"], "0")
         self.assertEqual(values["DYNAMIC_TRACK_INIT_STEP_FRAME"], "1")
         self.assertEqual(values["EXPECTED_MIN_USDZ_TRACKS"], "87")
-        self.assertEqual(values["EXPECTED_MIN_USDZ_VEHICLES"], "23")
-        self.assertEqual(values["EXPECTED_MIN_USDZ_PEDESTRIANS"], "64")
+        self.assertEqual(values["EXPECTED_MIN_USDZ_VEHICLES"], "29")
+        self.assertEqual(values["EXPECTED_MIN_USDZ_PEDESTRIANS"], "58")
 
     def test_m8_time_window_preflight_covers_all_tracks_with_a_bounded_point_budget(self):
         lines = M8_NCORE_ELIGIBLE_REGISTRY_TIME_WINDOW_PREFLIGHT.read_text(encoding="utf-8").splitlines()
