@@ -135,6 +135,11 @@ def main() -> int:
     parser.add_argument("--min-median-speed-ms", type=float, default=0.1)
     parser.add_argument("--min-eligible-vehicles", type=int, default=1)
     parser.add_argument("--min-eligible-pedestrians", type=int, default=1)
+    parser.add_argument(
+        "--selected-track-ids",
+        type=parse_csv,
+        help="Optional explicit NuRec layer selection; every listed ID must be eligible.",
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
@@ -152,8 +157,42 @@ def main() -> int:
         min_median_speed_ms=args.min_median_speed_ms,
     )
     eligible = [track for track in tracks if track.eligible]
-    vehicles = [track for track in eligible if track.class_id in args.vehicle_classes]
-    pedestrians = [track for track in eligible if track.class_id in args.pedestrian_classes]
+    eligible_by_id = {track.track_id: track for track in eligible}
+    summaries_by_id = {track.track_id: track for track in tracks}
+    selected_ids = args.selected_track_ids
+    missing_selected_ids = sorted(selected_ids - set(eligible_by_id)) if selected_ids else []
+    selected = (
+        [eligible_by_id[track_id] for track_id in sorted(selected_ids) if track_id in eligible_by_id]
+        if selected_ids
+        else eligible
+    )
+    vehicles = [track for track in selected if track.class_id in args.vehicle_classes]
+    pedestrians = [track for track in selected if track.class_id in args.pedestrian_classes]
+    raw_by_id: dict[str, list[Any]] = defaultdict(list)
+    for observation in observations:
+        raw_by_id[str(observation.track_id)].append(observation)
+    selected_diagnostics = []
+    for track_id in sorted(selected_ids or []):
+        raw = raw_by_id.get(track_id, [])
+        summary = summaries_by_id.get(track_id)
+        if not raw:
+            status = "absent_from_manifest"
+        elif summary is None:
+            status = "rejected_by_source_or_class"
+        elif track_id not in eligible_by_id:
+            status = "rejected_by_track_eligibility"
+        else:
+            status = "selected"
+        selected_diagnostics.append(
+            {
+                "track_id": track_id,
+                "status": status,
+                "raw_observation_count": len(raw),
+                "raw_sources": sorted({source_name(item.source) for item in raw}),
+                "raw_class_ids": sorted({str(item.class_id) for item in raw}),
+                "eligible_summary": asdict(summary) if summary is not None else None,
+            }
+        )
     report = {
         "schema_version": 1,
         "manifest": str(manifest),
@@ -167,12 +206,19 @@ def main() -> int:
             "min_observations": args.min_observations,
             "min_displacement_m": args.min_displacement_m,
             "min_median_speed_ms": args.min_median_speed_ms,
+            "selected_track_ids": sorted(selected_ids) if selected_ids else None,
         },
-        "eligible_vehicle_count": len(vehicles),
-        "eligible_pedestrian_count": len(pedestrians),
+        "eligible_vehicle_count": sum(track.class_id in args.vehicle_classes for track in eligible),
+        "eligible_pedestrian_count": sum(track.class_id in args.pedestrian_classes for track in eligible),
         "eligible_tracks": [asdict(track) for track in eligible],
+        "selected_tracks": [asdict(track) for track in selected],
+        "selected_vehicle_count": len(vehicles),
+        "selected_pedestrian_count": len(pedestrians),
+        "selected_track_ids_missing_from_eligible": missing_selected_ids,
+        "selected_track_diagnostics": selected_diagnostics,
         "pass": (
-            len(vehicles) >= args.min_eligible_vehicles
+            not missing_selected_ids
+            and len(vehicles) >= args.min_eligible_vehicles
             and len(pedestrians) >= args.min_eligible_pedestrians
         ),
     }
@@ -184,6 +230,7 @@ def main() -> int:
     if not report["pass"]:
         raise SystemExit(
             "dynamic-track gate failed: "
+            f"selected IDs missing={len(missing_selected_ids)}, "
             f"eligible vehicles={len(vehicles)} (need {args.min_eligible_vehicles}), "
             f"pedestrians={len(pedestrians)} (need {args.min_eligible_pedestrians})"
         )
@@ -192,4 +239,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

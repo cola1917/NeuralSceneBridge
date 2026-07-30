@@ -54,7 +54,20 @@ class DynamicTrackValidationTests(unittest.TestCase):
         )
         self.assertFalse(tracks[0].eligible)
 
+    def test_zero_threshold_contract_retains_stationary_external_track(self) -> None:
+        tracks, _, _ = summarize_tracks(
+            [
+                observation("ped-1", "pedestrian", 0, 1.0),
+                observation("ped-1", "pedestrian", 1_000_000, 1.0),
+            ],
+            accepted_sources={"EXTERNAL"},
+            accepted_classes={"pedestrian"},
+            min_observations=2,
+            min_displacement_m=0.0,
+            min_median_speed_ms=0.0,
+        )
+        self.assertTrue(tracks[0].eligible)
+
 
 if __name__ == "__main__":
     unittest.main()
-
