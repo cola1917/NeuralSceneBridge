@@ -1,0 +1,63 @@
+{
+  "schema_version": "nsb.nurec-interview-demo-manifest.v1",
+  "scene_id": "scene-0061",
+  "runtime_scene_id": "scene-0061",
+  "scene_timestamp_range_us": {
+    "start": 1532402927598150,
+    "stop": 1532402946797517
+  },
+  "artifact": {
+    "role": "canonical_nurec_usdz",
+    "uri": "outputs/nurec_scene0061_renderable_lidar_v3_6cam_40k_formal_attempt_001/9aChcizbAsm4oDQKJMdBHM/artifacts/last.usdz",
+    "sha256": "69e2c36e31e113f9ad66968a0a0a4243c7989dae5582a91a43d150051eaf98b4",
+    "size_bytes": 1164047285,
+    "training_recipe": "renderable_lidar_v3_6cam_40k_formal_attempt_001"
+  },
+  "checkpoint": {
+    "role": "matching_nurec_checkpoint",
+    "uri": "outputs/nurec_scene0061_renderable_lidar_v3_6cam_40k_formal_attempt_001/9aChcizbAsm4oDQKJMdBHM/checkpoints/last.ckpt",
+    "sha256": "e1020e9e0824a2952597014f3252df59c35b7cb0f3cd018f2fb1bdfc0cd6cfa9",
+    "size_bytes": 3261076413
+  },
+  "nurec": {
+    "image": "nvcr.io/nvidia/nre/nre-ga:26.04",
+    "version_id": "26.4.146",
+    "git_hash": "c63f08a4",
+    "grpc_api_version": "0.0.1",
+    "api": "SensorsimService/26.04"
+  },
+  "runtime": {
+    "server_address": "127.0.0.1:46443",
+    "runtime_scene_id": "scene-0061",
+    "scene_start_us": 1532402927598150,
+    "python_api_path": "/home/cwadmin/sim-env/data/CARLA_0.9.16/PythonAPI/examples/nvidia/nurec",
+    "resolution": {
+      "width": 800,
+      "height": 450
+    }
+  },
+  "target_track_id": "c1958768d48640948f6053d04cffd35b",
+  "usd_z_validation": {
+    "status": "passed",
+    "validator": "scripts/validate_nurec_usdz_tracks.py",
+    "track_count": 223,
+    "controllable_track_count": 74,
+    "vehicle_track_count": 23,
+    "pedestrian_track_count": 58,
+    "required_track_ids": [
+      "c1958768d48640948f6053d04cffd35b"
+    ],
+    "sequence_tracks_member": "sequence_tracks.json"
+  },
+  "case_files": [
+    "demo/scene0061/cases/original_replay.json",
+    "demo/scene0061/cases/lead_vehicle_edit.json",
+    "demo/scene0061/cases/camera_pose_sweep.json"
+  ],
+  "quality_report": "demo/scene0061/quality_report.json",
+  "limitations": [
+    "The demo is RGB reconstruction/editability evidence; it does not claim CARLA closed-loop behavior.",
+    "Static NONE-flagged USDZ tracks remain baked into the artifact; dynamic RPC inputs contain all controllable tracks.",
+    "LiDAR is optional evidence and is not used to claim RGB/LiDAR world consistency unless a live LiDAR capture is recorded."
+  ]
+}

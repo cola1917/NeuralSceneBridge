@@ -1,0 +1,63 @@
+{
+  "schema_version": "nsb.nurec-counterfactual-case.v1",
+  "case_id": "V02",
+  "kind": "lead_vehicle_edit",
+  "scene_id": "scene-0061",
+  "runtime_scene_id": "scene-0061",
+  "camera_ids": [
+    "camera_front_left",
+    "camera_front",
+    "camera_front_right",
+    "camera_back_left",
+    "camera_back",
+    "camera_back_right"
+  ],
+  "resolution": {
+    "width": 800,
+    "height": 450
+  },
+  "timestamp_range_us": {
+    "start": 1532402927598150,
+    "end": 1532402946797517
+  },
+  "sample_fps": 30.0,
+  "camera_grid": {
+    "columns": 3,
+    "rows": 2,
+    "label_cameras": true
+  },
+  "video_resolution": {
+    "width": 2400,
+    "height": 900
+  },
+  "video_fps": 30.0,
+  "probe_timestamp_us": 1532402946747214,
+  "dynamic_objects": {
+    "mode": "controllable",
+    "pose_source": "USDZ sequence_tracks.json",
+    "selection": "all DYNAMIC|CONTROLLABLE tracks"
+  },
+  "lead_vehicle_edit": {
+    "track_id": "c1958768d48640948f6053d04cffd35b",
+    "translation_m": {
+      "x": 0.5,
+      "y": 0.0,
+      "z": 0.0
+    },
+    "rotation_deg": {
+      "roll": 0.0,
+      "pitch": 0.0,
+      "yaw": 0.0
+    },
+    "profile": "constant_translation"
+  },
+  "probe": {
+    "type": "A/A/B",
+    "repeatability": "exact_rgb_payload_sha256"
+  },
+  "video_name": "lead_vehicle_edit.mp4",
+  "quality": {
+    "require_contiguous_frames": true,
+    "max_dark_pixel_ratio": 0.98
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schema_version": "nsb.nurec-quality-report.v1",
+  "status": "example",
+  "pass": false,
+  "artifact": {
+    "uri": "<configured canonical USDZ URI>",
+    "sha256": "<64 lowercase hex characters>",
+    "size_bytes": 0
+  },
+  "checkpoint": {
+    "uri": "<matching checkpoint URI>",
+    "sha256": "<64 lowercase hex characters>",
+    "size_bytes": 0
+  },
+  "code_commit": "<git commit>",
+  "nurec": {
+    "version_id": "<live SensorsimService version>",
+    "git_hash": "<live renderer git hash>",
+    "api": "SensorsimService/26.04"
+  },
+  "cases": [],
+  "limitations": [
+    "Replace this example with scripts/generate_nurec_quality_report.py output from captured evidence.",
+    "A report with pending-capture, null measurements, or a template status must never be marked pass."
+  ]
+}

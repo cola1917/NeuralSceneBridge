@@ -1,0 +1,1413 @@
+{
+  "schema_version": "nsb.nurec-quality-report.v1",
+  "status": "passed",
+  "pass": true,
+  "generated_at": "2026-08-02T23:57:53.624662+00:00",
+  "scene": {
+    "scene_id": "scene-0061",
+    "runtime_scene_id": "scene-0061",
+    "timestamp_range_us": {
+      "start": 1532402927598150,
+      "stop": 1532402946797517
+    }
+  },
+  "artifact": {
+    "role": "canonical_nurec_usdz",
+    "uri": "outputs/nurec_scene0061_renderable_lidar_v3_6cam_40k_formal_attempt_001/9aChcizbAsm4oDQKJMdBHM/artifacts/last.usdz",
+    "resolved_path": "/home/cwadmin/workspace/NeuralSceneBridge/outputs/nurec_scene0061_renderable_lidar_v3_6cam_40k_formal_attempt_001/9aChcizbAsm4oDQKJMdBHM/artifacts/last.usdz",
+    "sha256": "69e2c36e31e113f9ad66968a0a0a4243c7989dae5582a91a43d150051eaf98b4",
+    "size_bytes": 1164047285,
+    "observed": {
+      "path": "/home/cwadmin/workspace/NeuralSceneBridge/outputs/nurec_scene0061_renderable_lidar_v3_6cam_40k_formal_attempt_001/9aChcizbAsm4oDQKJMdBHM/artifacts/last.usdz",
+      "exists": true,
+      "sha256": "69e2c36e31e113f9ad66968a0a0a4243c7989dae5582a91a43d150051eaf98b4",
+      "size_bytes": 1164047285
+    },
+    "identity_verified": true
+  },
+  "checkpoint": {
+    "role": "matching_nurec_checkpoint",
+    "uri": "outputs/nurec_scene0061_renderable_lidar_v3_6cam_40k_formal_attempt_001/9aChcizbAsm4oDQKJMdBHM/checkpoints/last.ckpt",
+    "sha256": "e1020e9e0824a2952597014f3252df59c35b7cb0f3cd018f2fb1bdfc0cd6cfa9",
+    "size_bytes": 3261076413,
+    "observed": {
+      "path": "/home/cwadmin/workspace/NeuralSceneBridge/outputs/nurec_scene0061_renderable_lidar_v3_6cam_40k_formal_attempt_001/9aChcizbAsm4oDQKJMdBHM/checkpoints/last.ckpt",
+      "exists": true,
+      "sha256": "e1020e9e0824a2952597014f3252df59c35b7cb0f3cd018f2fb1bdfc0cd6cfa9",
+      "size_bytes": 3261076413
+    },
+    "identity_verified": true
+  },
+  "code_commit": "cae8fa66a93d0d24cd084851b293f24f87e0ac48",
+  "nurec": {
+    "image": "nvcr.io/nvidia/nre/nre-ga:26.04",
+    "version_id": "26.4.146",
+    "git_hash": "c63f08a4",
+    "grpc_api_version": "0.0.1",
+    "api": "SensorsimService/26.04"
+  },
+  "runtime": {
+    "server_address": "127.0.0.1:46443",
+    "runtime_scene_id": "scene-0061",
+    "scene_start_us": 1532402927598150,
+    "python_api_path": "/home/cwadmin/sim-env/data/CARLA_0.9.16/PythonAPI/examples/nvidia/nurec",
+    "resolution": {
+      "width": 800,
+      "height": 450
+    }
+  },
+  "track_inventory": {
+    "status": "passed",
+    "validator": "scripts/validate_nurec_usdz_tracks.py",
+    "track_count": 223,
+    "controllable_track_count": 74,
+    "vehicle_track_count": 23,
+    "pedestrian_track_count": 58,
+    "required_track_ids": [
+      "c1958768d48640948f6053d04cffd35b"
+    ],
+    "sequence_tracks_member": "sequence_tracks.json"
+  },
+  "reconstruction": {
+    "training_recipe": "renderable_lidar_v3_6cam_40k_formal_attempt_001",
+    "metrics": {
+      "path": "/home/cwadmin/workspace/NeuralSceneBridge/outputs/nurec_scene0061_renderable_lidar_v3_6cam_40k_formal_attempt_001/9aChcizbAsm4oDQKJMdBHM/val/metrics.yaml",
+      "sha256": "558fe67c721533c5526fdedeae0551d69991d637190bee81a7bf2d21cc7b3169",
+      "size_bytes": 1555545,
+      "program_version": {
+        "git_commit_date": "2026-05-28T12:41:08-07:00",
+        "git_commit_sha_short": "c63f08a4",
+        "git_tree_dirty": false,
+        "version_major": 26,
+        "version_minor": 4,
+        "version_patch": 146,
+        "version_string": "26.4.146-c63f08a4"
+      },
+      "run_info": {
+        "mode": "val",
+        "run_id": "9aChcizbAsm4oDQKJMdBHM",
+        "train_config_name": "configs/apps/prod/Hyperion-8.1/car2sim_6cam.yaml"
+      },
+      "aggregated": {
+        "test/chamfer_distance": 0.7582120895385742,
+        "test/raydrop_accuracy": 0.593369722366333
+      }
+    },
+    "metrics_status": "passed",
+    "config": {
+      "path": "/home/cwadmin/workspace/NeuralSceneBridge/outputs/nurec_scene0061_renderable_lidar_v3_6cam_40k_formal_attempt_001/9aChcizbAsm4oDQKJMdBHM/config/parsed.yaml",
+      "exists": true,
+      "sha256": "db3fc705b784c263a5246be4ed80eecae16aceebb488b12057a5bcfb05d54320",
+      "size_bytes": 217117
+    }
+  },
+  "cases": [
+    {
+      "case_id": "V01",
+      "kind": "original_replay",
+      "status": "passed",
+      "pass": true,
+      "evidence": {
+        "path": "/home/cwadmin/workspace/NeuralSceneBridge/outputs/nurec_scene0061_demo/V01/evidence.json",
+        "exists": true,
+        "sha256": "441fad47149e7d31dc8d057a4a0223fc292843dab31752d89e42669250ae08df",
+        "size_bytes": 3822,
+        "status": "passed"
+      },
+      "case": {
+        "path": "/home/cwadmin/workspace/NeuralSceneBridge/demo/scene0061/cases/original_replay.json",
+        "exists": true,
+        "sha256": "64b3ca4d32b8f5fcc0f99af06a9e089fb5a86709d2b9c526a638c73f8ed1f6e1",
+        "size_bytes": 960
+      },
+      "video": {
+        "path": "/home/cwadmin/workspace/NeuralSceneBridge/outputs/nurec_scene0061_demo/V01/original_replay.mp4",
+        "exists": true,
+        "sha256": "686cbd058c1d380f224c909c1410439984f0845bc80c1cb66b4e642dea447e69",
+        "size_bytes": 47323329
+      },
+      "frames": {
+        "requested_count": 577,
+        "captured_count": 577,
+        "dropped_count": 0,
+        "metadata": {
+          "path": "/home/cwadmin/workspace/NeuralSceneBridge/outputs/nurec_scene0061_demo/V01/frames.jsonl",
+          "exists": true,
+          "sha256": "7544f43d63bce2058780e68c8bab14d35ab3732baedde226a7ee7869e9967547",
+          "size_bytes": 5275078
+        },
+        "camera_ids": [
+          "camera_front_left",
+          "camera_front",
+          "camera_front_right",
+          "camera_back_left",
+          "camera_back",
+          "camera_back_right"
+        ],
+        "first_timestamp_us": 1532402927598150,
+        "last_timestamp_us": 1532402946797517,
+        "rpc_latency_ms": {
+          "p50": 170.96360999858007,
+          "p95": 180.33856299007311,
+          "sample_count": 577
+        },
+        "camera_count": 6,
+        "video_resolution": {
+          "height": 900,
+          "width": 2400
+        },
+        "video_fps": 30.0,
+        "duration_s": 19.233333333333334
+      },
+      "quality": {
+        "invalid_pixel_ratio": {
+          "available": true,
+          "value": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "sample_count": 577
+        },
+        "dark_pixel_ratio": {
+          "available": true,
+          "value": 0.0002677546697477374,
+          "min": 0.0,
+          "max": 0.0016703703703703705,
+          "sample_count": 577
+        },
+        "laplacian_sharpness": {
+          "available": true,
+          "value": 234.1218649459178,
+          "min": 200.5343241282664,
+          "max": 257.21378968574754,
+          "sample_count": 577
+        },
+        "temporal_flicker": {
+          "available": true,
+          "value": 0.0379078294749094,
+          "min": 0.021314215192607806,
+          "max": 0.055155342700434665,
+          "sample_count": 576
+        }
+      },
+      "camera_quality": {
+        "camera_front_left": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 6.191026381667628e-06,
+            "min": 0.0,
+            "max": 0.002238888888888889,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 54.29953846908721,
+            "min": 8.134790424413579,
+            "max": 125.19722778469138,
+            "sample_count": 577
+          }
+        },
+        "camera_front": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 9.075197381089927e-05,
+            "min": 0.0,
+            "max": 0.008805555555555556,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 96.37098188667028,
+            "min": 75.94565773320988,
+            "max": 125.58705130425149,
+            "sample_count": 577
+          }
+        },
+        "camera_front_right": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 2.3748315039476267e-05,
+            "min": 0.0,
+            "max": 0.0010972222222222223,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 89.52336365906393,
+            "min": 59.22667661091821,
+            "max": 116.83949991604162,
+            "sample_count": 577
+          }
+        },
+        "camera_back_left": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 2.0363951473136914e-06,
+            "min": 0.0,
+            "max": 0.000975,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 43.59090088828876,
+            "min": 6.446168087777779,
+            "max": 84.95283447888887,
+            "sample_count": 577
+          }
+        },
+        "camera_back": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 5.357211631041793e-05,
+            "min": 0.0,
+            "max": 0.0063861111111111115,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 108.39728266956243,
+            "min": 60.040366666666664,
+            "max": 180.0080720486111,
+            "sample_count": 577
+          }
+        },
+        "camera_back_right": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 1.8009820912767193e-05,
+            "min": 0.0,
+            "max": 0.0010305555555555556,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 97.59998564612476,
+            "min": 50.39530903665895,
+            "max": 156.448675638696,
+            "sample_count": 577
+          }
+        }
+      },
+      "motion": {
+        "target_pose_delta_m": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "camera_pose_sweep": {
+          "max_translation_m": 0.0,
+          "max_rotation_deg": 0.0,
+          "translation_sample_count": 577,
+          "rotation_sample_count": 577
+        },
+        "probe_summary": null
+      },
+      "probe": null,
+      "reasons": []
+    },
+    {
+      "case_id": "V02",
+      "kind": "lead_vehicle_edit",
+      "status": "passed",
+      "pass": true,
+      "evidence": {
+        "path": "/home/cwadmin/workspace/NeuralSceneBridge/outputs/nurec_scene0061_demo/V02/evidence.json",
+        "exists": true,
+        "sha256": "feb84aa7d1c872748e400f043bce93ecef4ab96eaf8ac64e912152f94e225733",
+        "size_bytes": 16993,
+        "status": "passed"
+      },
+      "case": {
+        "path": "/home/cwadmin/workspace/NeuralSceneBridge/demo/scene0061/cases/lead_vehicle_edit.json",
+        "exists": true,
+        "sha256": "5d0cdcc52efb0ca95802c5317810fd500bed05acea5a362afc8ae4baf999d8d3",
+        "size_bytes": 1375
+      },
+      "video": {
+        "path": "/home/cwadmin/workspace/NeuralSceneBridge/outputs/nurec_scene0061_demo/V02/lead_vehicle_edit.mp4",
+        "exists": true,
+        "sha256": "552fab81084057be213f653050d3fa7c82317d3d36262accd7f99954fe6a6436",
+        "size_bytes": 47341476
+      },
+      "frames": {
+        "requested_count": 577,
+        "captured_count": 577,
+        "dropped_count": 0,
+        "metadata": {
+          "path": "/home/cwadmin/workspace/NeuralSceneBridge/outputs/nurec_scene0061_demo/V02/frames.jsonl",
+          "exists": true,
+          "sha256": "9b92f027a1cd0947de1e0c34375a6c1ecf29a5f97e172da23dfbab3ef8e35351",
+          "size_bytes": 5275231
+        },
+        "camera_ids": [
+          "camera_front_left",
+          "camera_front",
+          "camera_front_right",
+          "camera_back_left",
+          "camera_back",
+          "camera_back_right"
+        ],
+        "first_timestamp_us": 1532402927598150,
+        "last_timestamp_us": 1532402946797517,
+        "rpc_latency_ms": {
+          "p50": 171.04897601529956,
+          "p95": 179.40175900002941,
+          "sample_count": 577
+        },
+        "camera_count": 6,
+        "video_resolution": {
+          "height": 900,
+          "width": 2400
+        },
+        "video_fps": 30.0,
+        "duration_s": 19.233333333333334
+      },
+      "quality": {
+        "invalid_pixel_ratio": {
+          "available": true,
+          "value": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "sample_count": 577
+        },
+        "dark_pixel_ratio": {
+          "available": true,
+          "value": 0.000270323833365428,
+          "min": 0.0,
+          "max": 0.0016703703703703705,
+          "sample_count": 577
+        },
+        "laplacian_sharpness": {
+          "available": true,
+          "value": 234.15132010992093,
+          "min": 200.5938176467849,
+          "max": 257.44454987093263,
+          "sample_count": 577
+        },
+        "temporal_flicker": {
+          "available": true,
+          "value": 0.0379066853936202,
+          "min": 0.021367770550297756,
+          "max": 0.05514334510354435,
+          "sample_count": 576
+        }
+      },
+      "camera_quality": {
+        "camera_front_left": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 6.133256306566531e-06,
+            "min": 0.0,
+            "max": 0.002238888888888889,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 54.46037634301753,
+            "min": 8.134790424413579,
+            "max": 125.19416380381945,
+            "sample_count": 577
+          }
+        },
+        "camera_front": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 0.00010615732717119195,
+            "min": 0.0,
+            "max": 0.008805555555555556,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 96.38089255485373,
+            "min": 75.68113776659722,
+            "max": 126.03718469104167,
+            "sample_count": 577
+          }
+        },
+        "camera_front_right": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 2.3748315039476267e-05,
+            "min": 0.0,
+            "max": 0.0010972222222222223,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 89.52336365906393,
+            "min": 59.22667661091821,
+            "max": 116.83949991604162,
+            "sample_count": 577
+          }
+        },
+        "camera_back_left": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 2.0363951473136914e-06,
+            "min": 0.0,
+            "max": 0.000975,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 43.59090088828876,
+            "min": 6.446168087777779,
+            "max": 84.95283447888887,
+            "sample_count": 577
+          }
+        },
+        "camera_back": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 5.357211631041793e-05,
+            "min": 0.0,
+            "max": 0.0063861111111111115,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 108.39728266956243,
+            "min": 60.040366666666664,
+            "max": 180.0080720486111,
+            "sample_count": 577
+          }
+        },
+        "camera_back_right": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 1.8009820912767193e-05,
+            "min": 0.0,
+            "max": 0.0010305555555555556,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 97.59998564612476,
+            "min": 50.39530903665895,
+            "max": 156.448675638696,
+            "sample_count": 577
+          }
+        }
+      },
+      "motion": {
+        "target_pose_delta_m": {
+          "x": 0.5,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "camera_pose_sweep": {
+          "max_translation_m": 0.0,
+          "max_rotation_deg": 0.0,
+          "translation_sample_count": 577,
+          "rotation_sample_count": 577
+        },
+        "probe_summary": {
+          "status": "passed",
+          "aa_request_digest_equal": true,
+          "aa_rgb_repeatable": true,
+          "rgb_response_changed": true,
+          "target_pose_changed": true,
+          "non_target_actors_unchanged": true
+        }
+      },
+      "probe": {
+        "aa_request_digest_equal": true,
+        "aa_rgb_repeatable": true,
+        "baseline_dynamic_digest": "dcb814615d07097964649863d8580f87fe20ff0f2293afbffb729aa260664aad",
+        "baseline_non_target_digest": "3492f9be6b57d5180781bdca73b917ee93a0867607b21162eebce5d0bb58d5e9",
+        "camera_ids": [
+          "camera_front_left",
+          "camera_front",
+          "camera_front_right",
+          "camera_back_left",
+          "camera_back",
+          "camera_back_right"
+        ],
+        "moved_dynamic_digest": "26a2d4fbab212e55a0f2d94deee536b5adf875ba1d654c25277360fab0cd294a",
+        "moved_non_target_digest": "3492f9be6b57d5180781bdca73b917ee93a0867607b21162eebce5d0bb58d5e9",
+        "non_target_actors_unchanged": true,
+        "probe_timestamp_us": 1532402946747214,
+        "responses": {
+          "A": {
+            "camera_back": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "744a77c2fab57d5053bac9164f635798f1f1115717d9b69a641c393abb9e3eca",
+              "response_digest": "c5401e287d5443157c518a261cf96f1441a8872fe64237d2580013a067c89f95",
+              "rgb_payload_sha256": "8c8f0d5d20b40c6df200dc24ea362985f31c5281b1d23265bd3639d00ca19648",
+              "rpc_latency_ms": 25.76102298917249,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_back_left": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "3a7de9fccb7c702caee7111d335be00763c982e132563752b4d00dafb599acb3",
+              "response_digest": "382a7a0eaf6113287fda7d31c6fc8cc1f68d73695435edbfb1ad33aa1e799af9",
+              "rgb_payload_sha256": "39530ca5dcf879d9874dc8b6034ac1b9359d1e740f3216e1d0c567ab0b166d7c",
+              "rpc_latency_ms": 21.697918011341244,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_back_right": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "a9d76bae8eb9f15bfccb9a51cf879cf4144d75120d191ea6353ab8f04fb30181",
+              "response_digest": "d1a96581414a9e33647a545964e26b2be6e035a2528f52c9171e954cd5a1acd5",
+              "rgb_payload_sha256": "2881322e33b0a3696ccd53f4bcb935ea4f3ee9aede75206a5ccee136c22c1c9a",
+              "rpc_latency_ms": 21.532240032684058,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_front": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "4c52a0668f7bf087e3d755c87b1c19d1f93502c6ff0d82fe4c0329f53ab3024b",
+              "response_digest": "5ad95ce71d6ce07750eba8bd72a4e002484892a63e25c0ab1613554afa74047b",
+              "rgb_payload_sha256": "2ca9ad6540632faf8652f45575088c231d546528cd33df6abf7e2e2bf02a8859",
+              "rpc_latency_ms": 21.03283302858472,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_front_left": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "054c8f06d2f75d20fc8fee0472cc9b464507b86706e9f1f35b9cc64741016420",
+              "response_digest": "730d7a042873528ee37711059a4e2049eca1c91a14fefda39ea6fc55a989976f",
+              "rgb_payload_sha256": "ed7b2e7ed60e52d46bc606fc69969ac34c63a1e28fb2647c8fb8a98d4bfb8137",
+              "rpc_latency_ms": 55.06299197440967,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_front_right": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "6adf957bfa9e260e173d1ce1c4b7318144ffa4ed2ce9bfe07ad0461fe3bd7729",
+              "response_digest": "a1ea8bf1a2926d18c64673787490390191d3b0f64cd2b6a729df47a53b5d7363",
+              "rgb_payload_sha256": "f9c2c52ff840ca3428a54063998b668514eebf18473daf03cb64d3dabd910066",
+              "rpc_latency_ms": 23.0299910181202,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            }
+          },
+          "A_repeat": {
+            "camera_back": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "744a77c2fab57d5053bac9164f635798f1f1115717d9b69a641c393abb9e3eca",
+              "response_digest": "c5401e287d5443157c518a261cf96f1441a8872fe64237d2580013a067c89f95",
+              "rgb_payload_sha256": "8c8f0d5d20b40c6df200dc24ea362985f31c5281b1d23265bd3639d00ca19648",
+              "rpc_latency_ms": 26.539365004282445,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_back_left": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "3a7de9fccb7c702caee7111d335be00763c982e132563752b4d00dafb599acb3",
+              "response_digest": "382a7a0eaf6113287fda7d31c6fc8cc1f68d73695435edbfb1ad33aa1e799af9",
+              "rgb_payload_sha256": "39530ca5dcf879d9874dc8b6034ac1b9359d1e740f3216e1d0c567ab0b166d7c",
+              "rpc_latency_ms": 23.442501027602702,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_back_right": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "a9d76bae8eb9f15bfccb9a51cf879cf4144d75120d191ea6353ab8f04fb30181",
+              "response_digest": "d1a96581414a9e33647a545964e26b2be6e035a2528f52c9171e954cd5a1acd5",
+              "rgb_payload_sha256": "2881322e33b0a3696ccd53f4bcb935ea4f3ee9aede75206a5ccee136c22c1c9a",
+              "rpc_latency_ms": 21.435203962028027,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_front": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "4c52a0668f7bf087e3d755c87b1c19d1f93502c6ff0d82fe4c0329f53ab3024b",
+              "response_digest": "5ad95ce71d6ce07750eba8bd72a4e002484892a63e25c0ab1613554afa74047b",
+              "rgb_payload_sha256": "2ca9ad6540632faf8652f45575088c231d546528cd33df6abf7e2e2bf02a8859",
+              "rpc_latency_ms": 19.88584501668811,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_front_left": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "054c8f06d2f75d20fc8fee0472cc9b464507b86706e9f1f35b9cc64741016420",
+              "response_digest": "730d7a042873528ee37711059a4e2049eca1c91a14fefda39ea6fc55a989976f",
+              "rgb_payload_sha256": "ed7b2e7ed60e52d46bc606fc69969ac34c63a1e28fb2647c8fb8a98d4bfb8137",
+              "rpc_latency_ms": 19.323356973472983,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_front_right": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "6adf957bfa9e260e173d1ce1c4b7318144ffa4ed2ce9bfe07ad0461fe3bd7729",
+              "response_digest": "a1ea8bf1a2926d18c64673787490390191d3b0f64cd2b6a729df47a53b5d7363",
+              "rgb_payload_sha256": "f9c2c52ff840ca3428a54063998b668514eebf18473daf03cb64d3dabd910066",
+              "rpc_latency_ms": 20.935196022037417,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            }
+          },
+          "B": {
+            "camera_back": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "5b21e81125aee1e8e5ddd634f9dac381780ae00a16fc03fda3bf0b96e0305384",
+              "response_digest": "c5401e287d5443157c518a261cf96f1441a8872fe64237d2580013a067c89f95",
+              "rgb_payload_sha256": "8c8f0d5d20b40c6df200dc24ea362985f31c5281b1d23265bd3639d00ca19648",
+              "rpc_latency_ms": 26.81955200387165,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_back_left": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "0f2ee7b60f9286eb62b132d0d355d9e2032fa64c09f6e33733cedc85358572ed",
+              "response_digest": "382a7a0eaf6113287fda7d31c6fc8cc1f68d73695435edbfb1ad33aa1e799af9",
+              "rgb_payload_sha256": "39530ca5dcf879d9874dc8b6034ac1b9359d1e740f3216e1d0c567ab0b166d7c",
+              "rpc_latency_ms": 20.762976026162505,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_back_right": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "b90480668bc26a7786ba3b928086c5a2f2515ff5f30dd7b2f4084d34dcbcded0",
+              "response_digest": "d1a96581414a9e33647a545964e26b2be6e035a2528f52c9171e954cd5a1acd5",
+              "rgb_payload_sha256": "2881322e33b0a3696ccd53f4bcb935ea4f3ee9aede75206a5ccee136c22c1c9a",
+              "rpc_latency_ms": 19.510317011736333,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_front": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "16f31681cd1d508f0b78952d91670b526e9ea857d14a21704266dc8812ded474",
+              "response_digest": "e67139fad29e29715d0cc75d02d6717b992f0143eb734b715eebbf6d32c52060",
+              "rgb_payload_sha256": "183b3590e5d92a59d702c51f3647177ad4f64ba9c5ae75fa33fc5aff91291754",
+              "rpc_latency_ms": 20.99262597039342,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_front_left": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "b683be7f89abb7d1d6affb9e39faefa7fccba366bd5a814e5b8e25d1de044767",
+              "response_digest": "b989755c44255d5dc377a075afbdae5a62a728197b6fdd64c9505df382084404",
+              "rgb_payload_sha256": "9b135bcf33ecc21e10b7aa11d348a164a292463dc9327d0868224154f20344f3",
+              "rpc_latency_ms": 19.274342979770154,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            },
+            "camera_front_right": {
+              "decoded_height": 450,
+              "decoded_width": 800,
+              "logical_frame_end_us": 1532402946747215,
+              "logical_frame_start_us": 1532402946747214,
+              "request_digest": "4c4efb67979bf4f4a1f88fc609ddaa7fc12d38fec640998db38bc88a976c3f9e",
+              "response_digest": "a1ea8bf1a2926d18c64673787490390191d3b0f64cd2b6a729df47a53b5d7363",
+              "rgb_payload_sha256": "f9c2c52ff840ca3428a54063998b668514eebf18473daf03cb64d3dabd910066",
+              "rpc_latency_ms": 20.324675017036498,
+              "status": "passed",
+              "wire_frame_end_us": 1532402946747215,
+              "wire_frame_start_us": 1532402946747214
+            }
+          }
+        },
+        "rgb_response_changed": true,
+        "status": "passed",
+        "target_pose_changed": true
+      },
+      "reasons": []
+    },
+    {
+      "case_id": "V03",
+      "kind": "camera_pose_sweep",
+      "status": "passed",
+      "pass": true,
+      "evidence": {
+        "path": "/home/cwadmin/workspace/NeuralSceneBridge/outputs/nurec_scene0061_demo/V03/evidence.json",
+        "exists": true,
+        "sha256": "1b79d12536ebcd432e0ad3889e6e75639781393fae21380fb9624ba5b5fb6cb5",
+        "size_bytes": 19390,
+        "status": "passed"
+      },
+      "case": {
+        "path": "/home/cwadmin/workspace/NeuralSceneBridge/demo/scene0061/cases/camera_pose_sweep.json",
+        "exists": true,
+        "sha256": "2aedc2b81ff3a4c48e9d4322d50de9dbb1761e78b0e05d2efafea252f998b6a3",
+        "size_bytes": 1665
+      },
+      "video": {
+        "path": "/home/cwadmin/workspace/NeuralSceneBridge/outputs/nurec_scene0061_demo/V03/camera_pose_sweep.mp4",
+        "exists": true,
+        "sha256": "6a88fd2315c50f5bd5e45f2cff667af8c8536b06ec4c98269b435d7351af4db1",
+        "size_bytes": 48270331
+      },
+      "frames": {
+        "requested_count": 577,
+        "captured_count": 577,
+        "dropped_count": 0,
+        "metadata": {
+          "path": "/home/cwadmin/workspace/NeuralSceneBridge/outputs/nurec_scene0061_demo/V03/frames.jsonl",
+          "exists": true,
+          "sha256": "e674b399825024d567d387cf3cb5b5e13e097fa2d98262880d6edd6ac61dbed4",
+          "size_bytes": 5301843
+        },
+        "camera_ids": [
+          "camera_front_left",
+          "camera_front",
+          "camera_front_right",
+          "camera_back_left",
+          "camera_back",
+          "camera_back_right"
+        ],
+        "first_timestamp_us": 1532402927598150,
+        "last_timestamp_us": 1532402946797517,
+        "rpc_latency_ms": {
+          "p50": 170.5639660358429,
+          "p95": 181.40625697560608,
+          "sample_count": 577
+        },
+        "camera_count": 6,
+        "video_resolution": {
+          "height": 900,
+          "width": 2400
+        },
+        "video_fps": 30.0,
+        "duration_s": 19.233333333333334
+      },
+      "quality": {
+        "invalid_pixel_ratio": {
+          "available": true,
+          "value": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "sample_count": 577
+        },
+        "dark_pixel_ratio": {
+          "available": true,
+          "value": 0.00025795943256948467,
+          "min": 0.0,
+          "max": 0.0015708333333333334,
+          "sample_count": 577
+        },
+        "laplacian_sharpness": {
+          "available": true,
+          "value": 427.01115976489183,
+          "min": 386.17268562974783,
+          "max": 446.1128818977004,
+          "sample_count": 577
+        },
+        "temporal_flicker": {
+          "available": true,
+          "value": 0.03626419605447835,
+          "min": 0.020480851566090304,
+          "max": 0.05273939394483379,
+          "sample_count": 576
+        }
+      },
+      "camera_quality": {
+        "camera_front_left": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 5.6470248411322906e-06,
+            "min": 0.0,
+            "max": 0.0019916666666666668,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 54.491060944663246,
+            "min": 8.155408322770063,
+            "max": 124.23254936906638,
+            "sample_count": 577
+          }
+        },
+        "camera_front": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 8.96013864818024e-05,
+            "min": 0.0,
+            "max": 0.008438888888888888,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 96.79643925794507,
+            "min": 75.94565773320988,
+            "max": 123.8430899175849,
+            "sample_count": 577
+          }
+        },
+        "camera_front_right": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 2.2400346620450657e-05,
+            "min": 0.0,
+            "max": 0.0012472222222222223,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 88.49182107968676,
+            "min": 56.282539644320984,
+            "max": 117.12797264036263,
+            "sample_count": 577
+          }
+        },
+        "camera_back_left": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 3.0377431157327173e-06,
+            "min": 0.0,
+            "max": 0.0011,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 43.12735059487527,
+            "min": 6.48552732888889,
+            "max": 84.83496462811729,
+            "sample_count": 577
+          }
+        },
+        "camera_back": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 5.3341036010013544e-05,
+            "min": 0.0,
+            "max": 0.006463888888888889,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 108.05365242593908,
+            "min": 59.79239925848766,
+            "max": 180.0080720486111,
+            "sample_count": 577
+          }
+        },
+        "camera_back_right": {
+          "invalid_pixel_ratio": {
+            "available": true,
+            "value": 0.0,
+            "min": 0.0,
+            "max": 0.0,
+            "sample_count": 577
+          },
+          "dark_pixel_ratio": {
+            "available": true,
+            "value": 1.461101482765261e-05,
+            "min": 0.0,
+            "max": 0.0010583333333333334,
+            "sample_count": 577
+          },
+          "laplacian_sharpness": {
+            "available": true,
+            "value": 96.76141806954533,
+            "min": 49.32165466358026,
+            "max": 155.55570386617282,
+            "sample_count": 577
+          }
+        }
+      },
+      "motion": {
+        "target_pose_delta_m": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "camera_pose_sweep": {
+          "max_translation_m": 0.1341640786499874,
+          "max_rotation_deg": 1.0,
+          "translation_sample_count": 577,
+          "rotation_sample_count": 577
+        },
+        "probe_summary": {
+          "status": "passed"
+        }
+      },
+      "probe": {
+        "camera_ids": [
+          "camera_front_left",
+          "camera_front",
+          "camera_front_right",
+          "camera_back_left",
+          "camera_back",
+          "camera_back_right"
+        ],
+        "probes": [
+          {
+            "name": "+x",
+            "responses": {
+              "camera_back": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "7ab233cd5ef188056ec1a892552633f816846db30f77b54ad4972704ed887a55",
+                "response_digest": "be28ef8187d7b0c6d2127625ea5eedd3e7caedc4f30421d44352c1fa916c0f85",
+                "rgb_payload_sha256": "3ac19e381177cd2f18e769af0b769b4bf6158eab6af06e07e26292cca2114792",
+                "rpc_latency_ms": 22.218132042326033,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_back_left": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "f8f18257671fcb6c09319b4e753c3e6be79f3f1de8177f6076fa4128c27408eb",
+                "response_digest": "86f5fb22dc4b3f09472f7b8b1d8da5fec46a29ebe5de5ba9660d11243d318245",
+                "rgb_payload_sha256": "0d2b871fe3b07728ae8f7ed5eed3173e5a66f342c6820df264f8e330c1a2e518",
+                "rpc_latency_ms": 21.84476499678567,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_back_right": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "3105796c88201092ce8074f7b16184532597bae4e602a9e6c5e300eb898bb032",
+                "response_digest": "ebccbdc237c3012873f5682e2ffc05259729888c88c38b722072574da162eff4",
+                "rgb_payload_sha256": "7d4b48a791c9bca3650723f60883f67768d25445cea503a3e28c679f263792b3",
+                "rpc_latency_ms": 19.674405979458243,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_front": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "b344728bc8c6346394e43cc1b73167f9457e0e3968473a898438819bc07994b4",
+                "response_digest": "79207bf8dfc8029e2ebf2507762fc415b55c672a23d5f9182cae3a79452d1d73",
+                "rgb_payload_sha256": "558430e9401da6499fbe442bea099f708315f0aafda080b454a04587ec884ab5",
+                "rpc_latency_ms": 29.387522023171186,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_front_left": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "596f66168dd74b574a48643f8ecf52e9738dd5bd4ec7b13613bb0232088fe17f",
+                "response_digest": "13f99c0c17559e76faba876a83840d5c569b00ae978bc82b9b478bfd4de58787",
+                "rgb_payload_sha256": "8f7a06e25693c146d1836cb992adb14477a0b67dad6c76324495937df1ceaac3",
+                "rpc_latency_ms": 76196.98266603518,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_front_right": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "f7e31d7eaafec43813c71d2211696a74e3bca0bec5c6fa5eb52f4b870d7a6572",
+                "response_digest": "12c24fa59eae822ad232715769de35491c5da52d853bf7da6d9d584861208f3c",
+                "rgb_payload_sha256": "2b5bd434f2f77993cccb465921f2a07d118d4a710ae4a4b0993b4b4e4106562a",
+                "rpc_latency_ms": 21.231440012343228,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              }
+            },
+            "rgb_payload_sha256_by_camera": {
+              "camera_back": "3ac19e381177cd2f18e769af0b769b4bf6158eab6af06e07e26292cca2114792",
+              "camera_back_left": "0d2b871fe3b07728ae8f7ed5eed3173e5a66f342c6820df264f8e330c1a2e518",
+              "camera_back_right": "7d4b48a791c9bca3650723f60883f67768d25445cea503a3e28c679f263792b3",
+              "camera_front": "558430e9401da6499fbe442bea099f708315f0aafda080b454a04587ec884ab5",
+              "camera_front_left": "8f7a06e25693c146d1836cb992adb14477a0b67dad6c76324495937df1ceaac3",
+              "camera_front_right": "2b5bd434f2f77993cccb465921f2a07d118d4a710ae4a4b0993b4b4e4106562a"
+            },
+            "status": "passed"
+          },
+          {
+            "name": "+y",
+            "responses": {
+              "camera_back": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "e5c697d02a29766c3f9385505583b2bd5bc640109c2a2fd49f11ef0c6e52f770",
+                "response_digest": "afed77ba2a9592cdcfb22daf5186253e5c0bc6af48354a8025d8cfdcc682c480",
+                "rgb_payload_sha256": "4fe40fbced2e043bb65f0530446e4f44c03a988052d31eb87d3a0a51f9109756",
+                "rpc_latency_ms": 22.825784981250763,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_back_left": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "fe92b1e7fcbe813409be32c835ca9a3b8ff3d9e1afdfbb34e3f939998a3fc673",
+                "response_digest": "a6cdb99a32341717e4ecd33b5c47e84a2e0efeedbef2f470dfc8c772433c0368",
+                "rgb_payload_sha256": "0b58679b0b575aed3c283e81e96a945d40ecb0d657336869b17b515f9dc49e27",
+                "rpc_latency_ms": 21.057997015304863,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_back_right": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "166dad13ced8184904453deec37981e3f4bb9fb816b062e3a99e875a6eab5c9c",
+                "response_digest": "a28481139c081273384e82081c7fcc08f5df84d85de89d1abecbbd2358a4fe5b",
+                "rgb_payload_sha256": "3ddd9dac273ea4df79fbdea8dd5ead5b137f6940030214227dc158d453730b25",
+                "rpc_latency_ms": 21.872850018553436,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_front": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "41fd0158db52d7343a159576decc9df706e1b60b9a0c3bbb372016e0ed645dee",
+                "response_digest": "ee47910ecd6fd1ca9e6d9d366407f15f2605438c21f0527f7d9683c0e86fc3ce",
+                "rgb_payload_sha256": "2ed882f234b4a8f102a5cf10e8ca28a6903f43540acb529821073b449f2a1b22",
+                "rpc_latency_ms": 26.2404489913024,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_front_left": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "935a92633cebbcf03a4e4c27f7cdf729b7c03037bf92cb828e6a2712a60885d9",
+                "response_digest": "d025c7fdd0797c7614e96e19bb9271fb367355373eb94ba640fc29044ebad641",
+                "rgb_payload_sha256": "5395e79b7442292a5ac1e6176a671d09a1d56f0c6aaa7ad53bf7608e22822c93",
+                "rpc_latency_ms": 19.91942699532956,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_front_right": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "c2ed412dc5dde13e3834b3e841467279d8fbc48349c57f972cb877d504c7a2d4",
+                "response_digest": "43ee7db78d8ad04378516f6dade26347a8d831a31ff2a1d46f2494ecd8856ccc",
+                "rgb_payload_sha256": "a614d4ef7a96b69e3a8cd30fc43032b4fbe138eaaa3d5429ea1d430e22337108",
+                "rpc_latency_ms": 19.56283301115036,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              }
+            },
+            "rgb_payload_sha256_by_camera": {
+              "camera_back": "4fe40fbced2e043bb65f0530446e4f44c03a988052d31eb87d3a0a51f9109756",
+              "camera_back_left": "0b58679b0b575aed3c283e81e96a945d40ecb0d657336869b17b515f9dc49e27",
+              "camera_back_right": "3ddd9dac273ea4df79fbdea8dd5ead5b137f6940030214227dc158d453730b25",
+              "camera_front": "2ed882f234b4a8f102a5cf10e8ca28a6903f43540acb529821073b449f2a1b22",
+              "camera_front_left": "5395e79b7442292a5ac1e6176a671d09a1d56f0c6aaa7ad53bf7608e22822c93",
+              "camera_front_right": "a614d4ef7a96b69e3a8cd30fc43032b4fbe138eaaa3d5429ea1d430e22337108"
+            },
+            "status": "passed"
+          },
+          {
+            "name": "+yaw",
+            "responses": {
+              "camera_back": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "b51efc51a8e431c00c153c488bd4ef69e78dea033b459fe27743f990082b0189",
+                "response_digest": "72b547ad8aa5a0a0cd71cfff9825459b7cfa5333ab415f6bf3f37ffadd7e42a0",
+                "rgb_payload_sha256": "56b8725f8b62c745e0e3a9750584877b8c8130046e1acfe21d3a0883d7f6da55",
+                "rpc_latency_ms": 21.07339701615274,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_back_left": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "1cff7bb05037ee38174097ad51f880ea690af4f967e0a025efc58193218c6aeb",
+                "response_digest": "4e035732452bf72d240ce47e24295bd6d7350e8a011f4a857f0ea8de624d7b8c",
+                "rgb_payload_sha256": "dbfabb3bfacfcc5f5d5755df23d67ed2025ce1124fb4e244750ee5978d3f75c6",
+                "rpc_latency_ms": 18.77378998324275,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_back_right": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "e6f44dfadbdfec5c0fc4e7df528ba6697717b095f5ad7560ec0c007fca4212fe",
+                "response_digest": "65a89bd84aa47badd1ec27e17fba24a81061bf927e68e2c81bd64a0b82969380",
+                "rgb_payload_sha256": "db86932cfb9f5b234c4485f75f26925eeef8cd4aee7ec2e36e2388a49f37e05e",
+                "rpc_latency_ms": 22.286931984126568,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_front": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "5e90fa75fd27631a69acf2946afc9ad93fa460d15476fcacd331c5ec45974f49",
+                "response_digest": "ae34864297623d889dfcaa842f4a2415a0c8131026070b0095858046232ee8ce",
+                "rgb_payload_sha256": "b30514776d32ad0fe56ab95a877a3b49582a6a4693229b8ac5d57579d12245c3",
+                "rpc_latency_ms": 26.26291400520131,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_front_left": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "8f1dacc09043d153407bd6085e399ef7449598d86ae7d72fe755a5bc57fc45e0",
+                "response_digest": "6599eb6fb62bda867d893f080fd0b2c4ede47c82aa4b13c11fdb40b6e22da9e4",
+                "rgb_payload_sha256": "dc6999f6669c12b7b2957e96dd08476bfd0d0eb60ed6265a3987051f61e9e03c",
+                "rpc_latency_ms": 20.832195004913956,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              },
+              "camera_front_right": {
+                "decoded_height": 450,
+                "decoded_width": 800,
+                "logical_frame_end_us": 1532402927598151,
+                "logical_frame_start_us": 1532402927598150,
+                "request_digest": "5b07c93a9efadf95faf3eaac2f2fd3e42e1de77daf4e958473d058d15f259a28",
+                "response_digest": "8b520dcc2ab8f2bb7aa38b416ca91044d65ec6f516141a99809e50ba1bb4597e",
+                "rgb_payload_sha256": "16ddedd2e49a7fc053ab280fdd9be012efa11576cb3295fe950797a6d5de57e1",
+                "rpc_latency_ms": 22.72859896766022,
+                "status": "passed",
+                "wire_frame_end_us": 1532402927598151,
+                "wire_frame_start_us": 1532402927598150
+              }
+            },
+            "rgb_payload_sha256_by_camera": {
+              "camera_back": "56b8725f8b62c745e0e3a9750584877b8c8130046e1acfe21d3a0883d7f6da55",
+              "camera_back_left": "dbfabb3bfacfcc5f5d5755df23d67ed2025ce1124fb4e244750ee5978d3f75c6",
+              "camera_back_right": "db86932cfb9f5b234c4485f75f26925eeef8cd4aee7ec2e36e2388a49f37e05e",
+              "camera_front": "b30514776d32ad0fe56ab95a877a3b49582a6a4693229b8ac5d57579d12245c3",
+              "camera_front_left": "dc6999f6669c12b7b2957e96dd08476bfd0d0eb60ed6265a3987051f61e9e03c",
+              "camera_front_right": "16ddedd2e49a7fc053ab280fdd9be012efa11576cb3295fe950797a6d5de57e1"
+            },
+            "status": "passed"
+          }
+        ],
+        "status": "passed",
+        "timestamp_us": 1532402927598150
+      },
+      "reasons": []
+    }
+  ],
+  "gates": {
+    "artifact_identity": true,
+    "checkpoint_identity": true,
+    "case_capture": true,
+    "metrics": true,
+    "report_pass": true
+  },
+  "reasons": [],
+  "limitations": [
+    "The demo is RGB reconstruction/editability evidence; it does not claim CARLA closed-loop behavior.",
+    "Static NONE-flagged USDZ tracks remain baked into the artifact; dynamic RPC inputs contain all controllable tracks.",
+    "LiDAR is optional evidence and is not used to claim RGB/LiDAR world consistency unless a live LiDAR capture is recorded.",
+    "The report proves renderer RPC and file-level evidence only; it is not CARLA closed-loop acceptance.",
+    "A pending_capture or failed report must not be used as a passed quality claim."
+  ]
+}
