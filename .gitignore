@@ -16,6 +16,7 @@ venv/
 
 # Outputs / local artifacts
 outputs/
+.cache/
 # Dataset blobs stay local / server-side; upload separately.
 data/nuscenes-mini/
 data/nuscenes-mini-scene-0061/
