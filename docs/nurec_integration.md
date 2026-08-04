@@ -200,3 +200,12 @@ bash scripts/run_local_checks.sh
 
 This checks shell syntax and validates the local nuScenes scene without
 requiring NCore Python dependencies.
+
+## scene-0061 Interview Demo
+
+The locked reconstruction, renderer-level counterfactual cases, and
+fail-closed quality report are documented in
+[`docs/interview_demo.md`](interview_demo.md) and
+[`docs/nurec_scene0061_demo.md`](nurec_scene0061_demo.md). Those runbooks keep
+the USDZ/checkpoint identity bound to every capture and explicitly separate
+SensorsimService evidence from CARLA closed-loop acceptance.
