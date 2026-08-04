@@ -59,15 +59,50 @@ def _artifact(package_dir: Path, role: str, path: Path) -> dict[str, Any]:
 def build_reconstruction_package(
     *,
     output: Path,
-    scene_token: str,
-    scene_name: str,
-    dataset_version: str,
+    scene_token: str | None = None,
+    scene_name: str | None = None,
+    dataset_version: str | None = None,
     artifacts: list[tuple[str, Path]],
     backend: str = "nurec",
     backend_version: str | None = None,
     requested_window: tuple[float, float] | None = None,
     actual_window: tuple[float, float] | None = None,
+    scenario_ir_path: Path | None = None,
 ) -> dict[str, Any]:
+    scenario_ir_identity = None
+    if scenario_ir_path is not None:
+        scenario_ir, scenario_ir_sha256 = _load_scenario_ir(scenario_ir_path)
+        ir_source = scenario_ir["source"]
+        ir_scene_token = scenario_ir["scenario_id"]
+        ir_scene_name = ir_source["scene_name"]
+        ir_dataset_version = ir_source["version"]
+        ir_window = scenario_ir["windows"]["reconstruction"]
+        ir_requested_window = (float(ir_window["start_sec"]), float(ir_window["end_sec"]))
+        for label, explicit, derived in (
+            ("scene_token", scene_token, ir_scene_token),
+            ("scene_name", scene_name, ir_scene_name),
+            ("dataset_version", dataset_version, ir_dataset_version),
+        ):
+            if explicit is not None and explicit != derived:
+                raise ValueError(f"{label} does not match Scenario IR")
+        if requested_window is not None and tuple(map(float, requested_window)) != ir_requested_window:
+            raise ValueError("requested_window does not match Scenario IR reconstruction window")
+        scene_token = ir_scene_token
+        scene_name = ir_scene_name
+        dataset_version = ir_dataset_version
+        requested_window = ir_requested_window
+        scenario_ir_identity = {
+            "schema_version": "scenario_ir.v1",
+            "scenario_id": ir_scene_token,
+            "sha256": scenario_ir_sha256,
+        }
+
+    if scene_token is None or scene_name is None:
+        raise ValueError(
+            "scene_token and scene_name are required unless scenario_ir_path is provided"
+        )
+    if dataset_version is None:
+        dataset_version = "v1.0-mini"
     if len(scene_token) != 32 or any(char not in "0123456789abcdef" for char in scene_token):
         raise ValueError("scene_token must be 32 lowercase hexadecimal characters")
     output = output.resolve()
@@ -81,12 +116,15 @@ def build_reconstruction_package(
     if requested_window is not None and actual_window is not None:
         if requested_window != actual_window:
             warnings.append("requested reconstruction window was not cropped; full-scene coverage was produced")
+        else:
+            coverage_mode = "window"
     elif requested_window is not None:
         warnings.append("actual reconstruction coverage is unknown")
         coverage_mode = "unknown"
     package = {
         "schema_version": SCHEMA_VERSION,
         "scene_id": scene_token,
+        **({"scenario_ir": scenario_ir_identity} if scenario_ir_identity is not None else {}),
         "source": {
             "dataset": "nuscenes",
             "dataset_version": dataset_version,
@@ -116,6 +154,25 @@ def build_reconstruction_package(
     return package
 
 
+def _load_scenario_ir(path: Path) -> tuple[dict[str, Any], str]:
+    resolved = Path(path).expanduser().resolve()
+    raw = resolved.read_bytes()
+    try:
+        value = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Scenario IR is not valid UTF-8 JSON: {resolved}") from exc
+    if not isinstance(value, dict):
+        raise ValueError("Scenario IR must be a JSON object")
+    try:
+        validate_document(value)
+    except ValueError as exc:
+        raise ValueError(f"Scenario IR validation failed: {exc}") from exc
+    window = ((value.get("windows") or {}).get("reconstruction") or {})
+    if float(window.get("end_sec", 0)) <= float(window.get("start_sec", 0)):
+        raise ValueError("Scenario IR reconstruction window must have positive duration")
+    return value, hashlib.sha256(raw).hexdigest()
+
+
 def _window(value: tuple[float, float] | None) -> dict[str, float] | None:
     if value is None:
         return None
@@ -128,15 +185,20 @@ def _window(value: tuple[float, float] | None) -> dict[str, float] | None:
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--scene-token", required=True)
-    parser.add_argument("--scene-name", required=True)
-    parser.add_argument("--dataset-version", default="v1.0-mini")
+    parser.add_argument("--scenario-ir", type=Path, help="Validated scenario_ir.v1 JSON from TriggerEngine.")
+    parser.add_argument("--scene-token")
+    parser.add_argument("--scene-name")
+    parser.add_argument("--dataset-version")
     parser.add_argument("--backend", default="nurec")
     parser.add_argument("--backend-version")
     parser.add_argument("--artifact", action="append", nargs=2, metavar=("ROLE", "PATH"), default=[])
     parser.add_argument("--requested-window", nargs=2, type=float, metavar=("START", "END"))
     parser.add_argument("--actual-window", nargs=2, type=float, metavar=("START", "END"))
     args = parser.parse_args(argv)
+    if args.scenario_ir is None and not all(
+        value is not None for value in (args.scene_token, args.scene_name)
+    ):
+        parser.error("--scenario-ir or both --scene-token and --scene-name is required")
     package = build_reconstruction_package(
         output=args.output,
         scene_token=args.scene_token,
@@ -147,6 +209,7 @@ def main(argv=None) -> int:
         backend_version=args.backend_version,
         requested_window=tuple(args.requested_window) if args.requested_window else None,
         actual_window=tuple(args.actual_window) if args.actual_window else None,
+        scenario_ir_path=args.scenario_ir,
     )
     print(json.dumps({"package": str(args.output), "artifacts": len(package["artifacts"])}, indent=2))
     return 0

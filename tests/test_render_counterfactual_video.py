@@ -1,10 +1,14 @@
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import struct
 import tempfile
 import unittest
 import zipfile
+
+
+_HAS_CV2 = importlib.util.find_spec("cv2") is not None
 
 
 class RenderCounterfactualVideoTests(unittest.TestCase):
@@ -249,6 +253,7 @@ class RenderCounterfactualVideoTests(unittest.TestCase):
         self.assertEqual(_camera_ids_for_case(case, None), list(FORMAL_CAMERA_ORDER))
         self.assertEqual(_camera_grid_for_case(case, list(FORMAL_CAMERA_ORDER)), (3, 2, True))
 
+    @unittest.skipUnless(_HAS_CV2, "requires OpenCV")
     def test_stitched_grid_has_formal_dimensions(self):
         from scripts.render_counterfactual_video import (
             FORMAL_CAMERA_ORDER,
@@ -274,6 +279,7 @@ class RenderCounterfactualVideoTests(unittest.TestCase):
         )
         self.assertEqual(_jpeg_dimensions(grid), (6, 4))
 
+    @unittest.skipUnless(_HAS_CV2, "requires OpenCV")
     def test_pose_overlay_is_visible_without_changing_grid_dimensions(self):
         from scripts.render_counterfactual_video import (
             FORMAL_CAMERA_ORDER,
@@ -354,6 +360,7 @@ class RenderCounterfactualVideoTests(unittest.TestCase):
         _make_output_dir(output, overwrite=True)
         self.assertEqual(list(output.iterdir()), [])
 
+    @unittest.skipUnless(_HAS_CV2, "requires OpenCV")
     def test_resume_capture_validates_contiguous_frames_and_timestamps(self):
         import cv2
         import numpy as np
@@ -444,9 +451,12 @@ class RenderCounterfactualVideoTests(unittest.TestCase):
 
         from scripts.render_counterfactual_video import SensorsimClient, _load_runtime_modules
 
-        grpc, sensorsim_pb2, common_pb2, _ = _load_runtime_modules(
-            Path("/home/cwadmin/sim-env/data/CARLA_0.9.16/PythonAPI/examples/nvidia/nurec")
+        python_api = Path(
+            "/home/cwadmin/sim-env/data/CARLA_0.9.16/PythonAPI/examples/nvidia/nurec"
         )
+        if not python_api.is_dir():
+            self.skipTest("local NuRec Python API is unavailable")
+        grpc, sensorsim_pb2, common_pb2, _ = _load_runtime_modules(python_api)
         del grpc
 
         body = BytesIO()

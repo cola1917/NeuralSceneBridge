@@ -1,4 +1,5 @@
 import hashlib
+import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
@@ -6,6 +7,10 @@ import unittest
 import numpy as np
 
 
+_HAS_CV2 = importlib.util.find_spec("cv2") is not None
+
+
+@unittest.skipUnless(_HAS_CV2, "requires OpenCV")
 class RenderMultimodalConsistencyTests(unittest.TestCase):
     def test_xyzi_voxel_signature_detects_a_local_actor_change(self):
         from scripts.render_multimodal_consistency import _voxel_signature

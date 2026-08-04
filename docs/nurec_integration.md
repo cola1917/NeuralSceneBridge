@@ -30,6 +30,17 @@ The example uses `SHM_SIZE=32g`, which fits a 64 GB-class rental VM. Increase
 it only after checking host RAM; the launcher rejects requests above 80% of
 physical memory.
 
+Every reconstruction package must be bound to the upstream `scenario_ir.v1`.
+The package builder validates that document, derives the nuScenes scene identity
+and reconstruction window from it, and stores its SHA-256 in the package:
+
+```bash
+python scripts/build_reconstruction_package.py \
+  --scenario-ir /path/to/scenario_ir.json \
+  --output outputs/reconstruction_package.json \
+  --artifact nurec_usdz outputs/reconstruction/last.usdz
+```
+
 NuRec 26.04 has no structured `trainer.max_steps` field. Its schedules and
 checkpoint cadence define total training iterations as
 `trainer.max_epochs * dataset.n_samples_per_epoch`. The strict three-camera

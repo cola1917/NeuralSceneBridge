@@ -17,6 +17,17 @@ venv/
 # Outputs / local artifacts
 outputs/
 .cache/
+# Interview demo media and runtime artifacts stay outside Git. Keep only the
+# manifests and report templates under demo/scene0061/.
+demo/scene0061/outputs/
+demo/scene0061/videos/
+demo/scene0061/artifacts/
+*.mp4
+*.mov
+*.avi
+*.usdz
+*.ckpt
+*.zarr
 # Dataset blobs stay local / server-side; upload separately.
 data/nuscenes-mini/
 data/nuscenes-mini-scene-0061/
