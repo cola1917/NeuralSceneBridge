@@ -156,5 +156,6 @@ and MP4 files are ignored or local-only.
 - No camera intrinsic, FOV, focal-length, or principal-point edits.
 - V02 edits only `c1958768d48640948f6053d04cffd35b`.
 - V03 edits only camera extrinsic pose within the checked-in bounds.
-- RGB/LiDAR world consistency is not claimed unless a separate live LiDAR
-  capture and validation are added to the report.
+- V04 uses a live RGB/LiDAR A/A-controlled capture for counterfactual response
+  comparison, but it does not claim per-point ownership or strict rigid
+  world registration.

@@ -45,6 +45,9 @@ RESPONSE_TO_ARTIFACT_AXES = np.asarray(
 TARGET_HALF_LENGTH_M = 3.0
 TARGET_HALF_WIDTH_M = 1.5
 TARGET_HALF_HEIGHT_M = 1.0
+LIDAR_DIFF_VOXEL_M = 0.10
+RGB_CONTROL_MULTIPLIER = 3.0
+RGB_MIN_CHANGE = 8.0
 
 
 def sha256_bytes(body: bytes) -> str:
@@ -127,6 +130,178 @@ def _normalize_xyzi(response: dict[str, Any]) -> tuple[np.ndarray, bytes]:
     sensor_points = points @ SENSOR_TO_BEV_AXES.T
     xyzi = np.column_stack((sensor_points, intensities)).astype("<f4", copy=False)
     return xyzi, xyzi.tobytes()
+
+
+def _voxel_keys(
+    points: np.ndarray,
+    voxel_m: float = LIDAR_DIFF_VOXEL_M,
+) -> set[tuple[int, int, int]]:
+    if not math.isfinite(voxel_m) or voxel_m <= 0.0:
+        raise RenderError("LiDAR difference voxel size must be positive and finite")
+    if len(points) == 0:
+        return set()
+    cells = np.floor(np.asarray(points[:, :3], dtype=np.float64) / voxel_m).astype(
+        np.int64
+    )
+    return {tuple(int(value) for value in row) for row in cells}
+
+
+def _voxel_difference(
+    baseline: np.ndarray,
+    control: np.ndarray,
+    edited: np.ndarray,
+    voxel_m: float = LIDAR_DIFF_VOXEL_M,
+) -> dict[str, Any]:
+    baseline_keys = _voxel_keys(baseline, voxel_m)
+    control_keys = _voxel_keys(control, voxel_m)
+    edited_keys = _voxel_keys(edited, voxel_m)
+    baseline_only = baseline_keys - edited_keys
+    edited_only = edited_keys - baseline_keys
+    control_removed = baseline_keys - control_keys
+    control_added = control_keys - baseline_keys
+    return {
+        "baseline_keys": baseline_keys,
+        "control_keys": control_keys,
+        "edited_keys": edited_keys,
+        "baseline_only": baseline_only,
+        "edited_only": edited_only,
+        "control_removed": control_removed,
+        "control_added": control_added,
+        "signal_removed": baseline_only - control_removed,
+        "signal_added": edited_only - control_added,
+        "voxel_size_m": float(voxel_m),
+    }
+
+
+def _rgb_difference(
+    baseline: np.ndarray,
+    control: np.ndarray,
+    edited: np.ndarray,
+) -> dict[str, Any]:
+    if baseline.shape != control.shape or baseline.shape != edited.shape:
+        raise RenderError("RGB A/A/B payloads must have identical dimensions")
+    baseline_f = baseline.astype(np.float32)
+    control_error = np.mean(np.abs(control.astype(np.float32) - baseline_f), axis=2)
+    edit_error = np.mean(np.abs(edited.astype(np.float32) - baseline_f), axis=2)
+    control_p995 = float(np.percentile(control_error, 99.5))
+    threshold = max(RGB_MIN_CHANGE, control_p995 * RGB_CONTROL_MULTIPLIER)
+    signal_mask = edit_error >= threshold
+    return {
+        "signal_mask": signal_mask,
+        "threshold": float(threshold),
+        "control_mean_abs_error": float(control_error.mean()),
+        "control_p995_abs_error": control_p995,
+        "edit_mean_abs_error": float(edit_error.mean()),
+        "signal_pixel_count": int(signal_mask.sum()),
+        "pixel_count": int(signal_mask.size),
+    }
+
+
+def _target_cell_count(
+    cells: set[tuple[int, int, int]],
+    target_response: np.ndarray,
+    target_yaw_rad: float,
+    voxel_m: float,
+) -> int:
+    if not cells:
+        return 0
+    centers = (
+        np.asarray(list(cells), dtype=np.float32) + 0.5
+    ) * float(voxel_m)
+    return int(_target_roi(centers, target_response, target_yaw_rad).sum())
+
+
+def _projected_cuboid_mask(
+    scene: ArtifactScene,
+    timestamp_us: int,
+    camera_timestamp_us: int,
+    target_delta: dict[str, float] | None,
+    width: int,
+    height: int,
+) -> np.ndarray:
+    _, uv, in_front = _camera_project_world(
+        scene,
+        _target_world_cuboid(scene, timestamp_us, target_delta),
+        camera_timestamp_us,
+        width,
+        height,
+    )
+    visible = (
+        in_front
+        & (uv[:, 0] >= 0)
+        & (uv[:, 0] < width)
+        & (uv[:, 1] >= 0)
+        & (uv[:, 1] < height)
+    )
+    mask = np.zeros((height, width), dtype=bool)
+    if int(visible.sum()) < 3:
+        return mask
+    polygon = np.round(uv[visible]).astype(np.int32)
+    hull = cv2.convexHull(polygon.reshape((-1, 1, 2)))
+    cv2.fillConvexPoly(mask.view(np.uint8), hull, 1)
+    return mask
+
+
+def _projected_delta_overlap(
+    scene: ArtifactScene,
+    baseline_points: np.ndarray,
+    edited_points: np.ndarray,
+    baseline_signal: set[tuple[int, int, int]],
+    edited_signal: set[tuple[int, int, int]],
+    lidar_timestamp_us: int,
+    camera_timestamp_us: int,
+    rgb_signal_mask: np.ndarray,
+    voxel_m: float,
+) -> dict[str, Any]:
+    selected = []
+    for points, cells in (
+        (baseline_points, baseline_signal),
+        (edited_points, edited_signal),
+    ):
+        if not cells:
+            continue
+        keys = np.floor(points[:, :3] / voxel_m).astype(np.int64)
+        keep = np.asarray(
+            [tuple(int(value) for value in row) in cells for row in keys],
+            dtype=bool,
+        )
+        if keep.any():
+            selected.append(points[keep, :3])
+    if not selected:
+        return {
+            "projected_point_count": 0,
+            "rgb_signal_hit_count": 0,
+            "rgb_signal_hit_ratio": 0.0,
+        }
+    xyz = np.concatenate(selected, axis=0)
+    lidar_pose = np.asarray(
+        scene.lidar_pose_matrix("lidar_top", lidar_timestamp_us), dtype=np.float64
+    )
+    artifact_xyz = xyz @ RESPONSE_TO_ARTIFACT_AXES.T
+    world = artifact_xyz @ lidar_pose[:3, :3].T + lidar_pose[:3, 3]
+    _, uv, in_front = _camera_project_world(
+        scene, world, camera_timestamp_us, rgb_signal_mask.shape[1], rgb_signal_mask.shape[0]
+    )
+    width, height = rgb_signal_mask.shape[1], rgb_signal_mask.shape[0]
+    visible = (
+        in_front
+        & (uv[:, 0] >= 0)
+        & (uv[:, 0] < width)
+        & (uv[:, 1] >= 0)
+        & (uv[:, 1] < height)
+    )
+    if not visible.any():
+        hits = 0
+    else:
+        px = np.clip(np.rint(uv[visible, 0]).astype(np.int32), 0, width - 1)
+        py = np.clip(np.rint(uv[visible, 1]).astype(np.int32), 0, height - 1)
+        hits = int(rgb_signal_mask[py, px].sum())
+    visible_count = int(visible.sum())
+    return {
+        "projected_point_count": visible_count,
+        "rgb_signal_hit_count": hits,
+        "rgb_signal_hit_ratio": float(hits / visible_count) if visible_count else 0.0,
+    }
 
 
 def _target_object(
@@ -214,39 +389,66 @@ def _target_roi(
     )
 
 
-def _bev(
-    points: np.ndarray,
+def _bev_overlay(
+    baseline: np.ndarray,
+    edited: np.ndarray,
     title: str,
     *,
-    target_response: np.ndarray,
-    reference_response: np.ndarray | None = None,
-) -> tuple[np.ndarray, int]:
+    baseline_only: set[tuple[int, int, int]],
+    edited_only: set[tuple[int, int, int]],
+    baseline_target_response: np.ndarray,
+    edited_target_response: np.ndarray,
+    voxel_m: float,
+) -> np.ndarray:
+    """Render a fixed-scale BEV difference view without boxes or arrows."""
     width, height = 800, 450
     image = np.full((height, width, 3), (18, 16, 14), dtype=np.uint8)
     x_min, x_max = -10.0, 60.0
     y_min, y_max = -30.0, 30.0
-    xyz = points[:, :3]
-    mask = (
-        (xyz[:, 0] >= x_min)
-        & (xyz[:, 0] <= x_max)
-        & (xyz[:, 1] >= y_min)
-        & (xyz[:, 1] <= y_max)
-    )
-    visible = xyz[mask]
-    px = ((visible[:, 1] - y_min) / (y_max - y_min) * (width - 1)).astype(np.int32)
-    py = ((x_max - visible[:, 0]) / (x_max - x_min) * (height - 1)).astype(np.int32)
-    image[py, px] = (190, 196, 202)
+    context_color = (150, 155, 160)
+    baseline_only_color = (235, 115, 45)  # blue in RGB
+    edited_only_color = (0, 220, 255)  # yellow in RGB
 
-    target_mask = mask & _target_roi(xyz, target_response)
-    target_points = xyz[target_mask]
-    target_px = (
-        (target_points[:, 1] - y_min) / (y_max - y_min) * (width - 1)
-    ).astype(np.int32)
-    target_py = (
-        (x_max - target_points[:, 0]) / (x_max - x_min) * (height - 1)
-    ).astype(np.int32)
-    for point_x, point_y in zip(target_px, target_py):
-        cv2.circle(image, (int(point_x), int(point_y)), 2, (0, 220, 255), -1)
+    def project(points: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        xyz = np.asarray(points[:, :3], dtype=np.float32)
+        visible = (
+            (xyz[:, 0] >= x_min)
+            & (xyz[:, 0] <= x_max)
+            & (xyz[:, 1] >= y_min)
+            & (xyz[:, 1] <= y_max)
+        )
+        visible_xyz = xyz[visible]
+        px = ((visible_xyz[:, 1] - y_min) / (y_max - y_min) * (width - 1)).astype(np.int32)
+        py = ((x_max - visible_xyz[:, 0]) / (x_max - x_min) * (height - 1)).astype(np.int32)
+        return xyz, visible, np.column_stack((px, py))
+
+    projected = []
+    for points in (baseline, edited):
+        xyz, visible, pixels = project(points)
+        if len(pixels):
+            image[pixels[:, 1], pixels[:, 0]] = context_color
+        projected.append((xyz, visible, pixels))
+
+    for (xyz, visible, pixels), changed, color in (
+        (projected[0], baseline_only, baseline_only_color),
+        (projected[1], edited_only, edited_only_color),
+    ):
+        if not changed:
+            continue
+        keys = np.floor(xyz / float(voxel_m)).astype(np.int64)
+        changed_visible = visible & np.asarray(
+            [tuple(int(value) for value in row) in changed for row in keys],
+            dtype=bool,
+        )
+        changed_xyz = xyz[changed_visible]
+        changed_px = (
+            (changed_xyz[:, 1] - y_min) / (y_max - y_min) * (width - 1)
+        ).astype(np.int32)
+        changed_py = (
+            (x_max - changed_xyz[:, 0]) / (x_max - x_min) * (height - 1)
+        ).astype(np.int32)
+        for point_x, point_y in zip(changed_px, changed_py):
+            cv2.circle(image, (int(point_x), int(point_y)), 2, color, -1, cv2.LINE_AA)
 
     def pixel(position: np.ndarray) -> tuple[int, int]:
         return (
@@ -254,69 +456,31 @@ def _bev(
             int(round((x_max - float(position[0])) / (x_max - x_min) * (height - 1))),
         )
 
-    def footprint(position: np.ndarray, color: tuple[int, int, int], thickness: int) -> None:
-        left_top = pixel(
-            np.asarray(
-                [
-                    position[0] + TARGET_HALF_LENGTH_M,
-                    position[1] - TARGET_HALF_WIDTH_M,
-                ]
-            )
-        )
-        right_bottom = pixel(
-            np.asarray(
-                [
-                    position[0] - TARGET_HALF_LENGTH_M,
-                    position[1] + TARGET_HALF_WIDTH_M,
-                ]
-            )
-        )
-        cv2.rectangle(image, left_top, right_bottom, color, thickness, cv2.LINE_AA)
+    # Small reference crosses are metadata centers, not fitted vehicle boxes.
+    cv2.drawMarker(image, pixel(baseline_target_response), (220, 220, 220), cv2.MARKER_CROSS, 14, 2, cv2.LINE_AA)
+    cv2.drawMarker(image, pixel(edited_target_response), (255, 220, 0), cv2.MARKER_CROSS, 14, 2, cv2.LINE_AA)
 
-    if reference_response is not None:
-        footprint(reference_response, (150, 150, 150), 1)
-    footprint(target_response, (0, 220, 255), 2)
-    target_pixel = pixel(target_response)
-    cv2.drawMarker(
-        image, target_pixel, (0, 220, 255), cv2.MARKER_CROSS, 16, 2, cv2.LINE_AA
-    )
-    origin_x = int((0.0 - y_min) / (y_max - y_min) * (width - 1))
-    origin_y = int((x_max - 0.0) / (x_max - x_min) * (height - 1))
-    cv2.drawMarker(image, (origin_x, origin_y), (80, 210, 120), cv2.MARKER_CROSS, 14, 2)
-    cv2.arrowedLine(
-        image,
-        (origin_x, origin_y - 4),
-        (origin_x, origin_y - 48),
-        (80, 210, 120),
-        2,
-        cv2.LINE_AA,
-        tipLength=0.25,
-    )
-    cv2.putText(image, "FRONT +x", (origin_x + 8, origin_y - 38), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (100, 230, 140), 1, cv2.LINE_AA)
-    cv2.putText(image, "LEFT -y", (18, height - 14), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (170, 180, 190), 1, cv2.LINE_AA)
-    cv2.putText(image, "RIGHT +y", (width - 92, height - 14), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (170, 180, 190), 1, cv2.LINE_AA)
-    cv2.rectangle(image, (0, 0), (width - 1, 30), (0, 0, 0), -1)
+    cv2.rectangle(image, (0, 0), (width - 1, 52), (0, 0, 0), -1)
+    cv2.putText(image, title, (10, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1, cv2.LINE_AA)
     cv2.putText(
         image,
-        title,
-        (10, 21),
+        "gray=context | blue=baseline-only | yellow=edited-only | crosses=reference centers",
+        (10, 43),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        (255, 255, 255),
+        0.34,
+        (205, 215, 225),
         1,
         cv2.LINE_AA,
     )
-    cv2.putText(
-        image,
-        f"target pose | {len(target_points)} returns in outlined ROI",
-        (10, 49),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.46,
-        (0, 220, 255),
-        1,
-        cv2.LINE_AA,
-    )
-    return image, int(len(target_points))
+
+    # Fixed orientation key; it does not move with the scene.
+    key_x, key_y = 10, 62
+    cv2.rectangle(image, (key_x, key_y), (key_x + 238, key_y + 62), (0, 0, 0), -1)
+    cv2.rectangle(image, (key_x, key_y), (key_x + 238, key_y + 62), (75, 85, 95), 1)
+    cv2.putText(image, "BEV AXIS", (key_x + 9, key_y + 16), cv2.FONT_HERSHEY_SIMPLEX, 0.36, (240, 242, 245), 1, cv2.LINE_AA)
+    cv2.putText(image, "TOP: CAMERA_FRONT (+X)", (key_x + 9, key_y + 35), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (0, 220, 255), 1, cv2.LINE_AA)
+    cv2.putText(image, "LEFT: -Y  RIGHT: +Y", (key_x + 9, key_y + 53), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (185, 195, 205), 1, cv2.LINE_AA)
+    return image
 
 
 def _target_world_cuboid(
@@ -407,6 +571,11 @@ def _camera_lidar(
     target_response: np.ndarray,
     target_yaw_rad: float,
     target_delta: dict[str, float] | None,
+    highlight_cells: set[tuple[int, int, int]] | None = None,
+    highlight_color: tuple[int, int, int] = (0, 220, 255),
+    highlight_label: str = "",
+    rgb_signal_mask: np.ndarray | None = None,
+    box_color: tuple[int, int, int] = (190, 190, 190),
 ) -> tuple[np.ndarray, int]:
     width, height = 800, 450
     image = np.zeros((height, width, 3), dtype=np.uint8)
@@ -428,6 +597,21 @@ def _camera_lidar(
     )
     target_mask = _target_roi(xyz, target_response, target_yaw_rad)
     target_visible = visible & target_mask
+    point_cells = np.floor(xyz / LIDAR_DIFF_VOXEL_M).astype(np.int64)
+    if highlight_cells is None:
+        highlighted = np.zeros(len(points), dtype=bool)
+    else:
+        highlighted = np.asarray(
+            [tuple(int(value) for value in row) in highlight_cells for row in point_cells],
+            dtype=bool,
+        )
+    if rgb_signal_mask is not None:
+        contours, _ = cv2.findContours(
+            rgb_signal_mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+        for contour in contours:
+            if cv2.contourArea(contour) >= 3.0:
+                cv2.polylines(image, [contour], True, (80, 220, 120), 1, cv2.LINE_AA)
     visible_depth = camera[visible, 2]
     if len(visible_depth):
         low = float(np.percentile(visible_depth, 5))
@@ -448,7 +632,10 @@ def _camera_lidar(
             int(np.clip(round(float(uv[index, 0])), 0, width - 1)),
             int(np.clip(round(float(uv[index, 1])), 0, height - 1)),
         )
-        color = (0, 220, 255) if target_visible[index] else tuple(int(v) for v in colors[index])
+        if highlighted[index]:
+            color = highlight_color
+        else:
+            color = tuple(int(float(value) * 0.35) for value in colors[index])
         cv2.circle(image, pixel, 1, color, -1, cv2.LINE_AA)
 
     cuboid_world = _target_world_cuboid(scene, lidar_timestamp_us, target_delta)
@@ -456,7 +643,7 @@ def _camera_lidar(
         scene, cuboid_world, camera_timestamp_us, width, height
     )
     box_visible = _draw_projected_cuboid(
-        image, cuboid_uv, cuboid_front, (0, 220, 255)
+        image, cuboid_uv, cuboid_front, box_color
     )
     cv2.rectangle(image, (0, 0), (width - 1, 30), (0, 0, 0), -1)
     cv2.putText(
@@ -472,7 +659,8 @@ def _camera_lidar(
     cv2.putText(
         image,
         f"camera_front projection | {len(points):,} points | {int(target_visible.sum()):,} oriented ROI returns"
-        + ("" if box_visible else " | target box partial/outside FOV"),
+        + (f" | {int(highlighted[visible].sum()):,} {highlight_label}" if highlight_label else "")
+        + ("" if box_visible else " | reference geometry partial/outside FOV"),
         (10, 49),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.40,
@@ -480,6 +668,20 @@ def _camera_lidar(
         1,
         cv2.LINE_AA,
     )
+    if highlight_cells is not None or rgb_signal_mask is not None:
+        legend = "green=RGB A/B contour"
+        if highlight_label:
+            legend += f" | {highlight_label}"
+        cv2.putText(
+            image,
+            legend,
+            (10, 70),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.34,
+            (120, 230, 150),
+            1,
+            cv2.LINE_AA,
+        )
     return image, int(target_visible.sum())
 
 
@@ -497,6 +699,40 @@ def _label_rgb(image: np.ndarray, title: str) -> np.ndarray:
         cv2.LINE_AA,
     )
     return result
+
+
+def _evidence_panel(
+    *,
+    rgb_signal_pixel_count: int,
+    lidar_added_count: int,
+    lidar_removed_count: int,
+    projected_hit_ratio: float,
+) -> np.ndarray:
+    """Render a compact static legend beside the BEV panel."""
+    width, height = 800, 450
+    image = np.full((height, width, 3), (14, 17, 22), dtype=np.uint8)
+    cv2.rectangle(image, (0, 0), (width - 1, 30), (5, 8, 12), -1)
+    cv2.putText(image, "V04 | evidence summary", (10, 21), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (245, 245, 245), 1, cv2.LINE_AA)
+    cv2.putText(image, "same timestamp | fixed panel layout", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (185, 195, 205), 1, cv2.LINE_AA)
+
+    cv2.putText(image, "LiDAR difference", (24, 94), cv2.FONT_HERSHEY_SIMPLEX, 0.50, (238, 242, 245), 1, cv2.LINE_AA)
+    entries = (
+        ((150, 155, 160), "gray  all returns / context"),
+        ((235, 115, 45), "blue  baseline-only signal"),
+        ((0, 220, 255), "yellow  edited-only signal"),
+    )
+    for row, (color, label) in enumerate(entries):
+        y = 128 + row * 34
+        cv2.circle(image, (32, y - 5), 6, color, -1, cv2.LINE_AA)
+        cv2.putText(image, label, (50, y), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (205, 215, 225), 1, cv2.LINE_AA)
+
+    cv2.putText(image, "Frame response", (24, 258), cv2.FONT_HERSHEY_SIMPLEX, 0.50, (238, 242, 245), 1, cv2.LINE_AA)
+    cv2.putText(image, f"RGB changed pixels: {rgb_signal_pixel_count:,}", (24, 294), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (205, 215, 225), 1, cv2.LINE_AA)
+    cv2.putText(image, f"LiDAR voxels: +{lidar_added_count:,} / -{lidar_removed_count:,}", (24, 326), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (205, 215, 225), 1, cv2.LINE_AA)
+    cv2.putText(image, f"projected hit diagnostic: {projected_hit_ratio:.0%}", (24, 358), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (205, 215, 225), 1, cv2.LINE_AA)
+    cv2.putText(image, "crosses = metadata centers", (24, 398), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (185, 195, 205), 1, cv2.LINE_AA)
+    cv2.putText(image, "rigid target shift: unverified", (24, 426), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (0, 220, 255), 1, cv2.LINE_AA)
+    return image
 
 
 def _read_front(root: Path, row: dict[str, Any]) -> tuple[np.ndarray, Path]:
@@ -617,8 +853,10 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                 raise RenderError(f"V04 resume timestamp differs at frame {expected_index}")
             for relative in (
                 record.get("rgb", {}).get("original_path"),
+                record.get("rgb", {}).get("repeat_path"),
                 record.get("rgb", {}).get("edited_path"),
                 record.get("lidar", {}).get("original_path"),
+                record.get("lidar", {}).get("repeat_path"),
                 record.get("lidar", {}).get("edited_path"),
                 f"frames/{expected_index:06d}.jpg",
             ):
@@ -659,6 +897,17 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                 dynamic_objects=baseline_objects,
                 frame_id=f"V04:{frame_index}:original:camera_front",
             )
+            repeat_rgb_response = client.render_rgb(
+                camera_id="camera_front",
+                width=800,
+                height=450,
+                start_us=timestamp_us,
+                end_us=end_us,
+                start_pose=rgb_start_pose,
+                end_pose=rgb_end_pose,
+                dynamic_objects=baseline_objects,
+                frame_id=f"V04:{frame_index}:repeat:camera_front",
+            )
             edited_rgb_response = client.render_rgb(
                 camera_id="camera_front",
                 width=800,
@@ -679,6 +928,15 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                 end_pose=end_pose,
                 dynamic_objects=baseline_objects,
             )
+            repeat_lidar = client.render_lidar(
+                lidar_id="lidar_top",
+                device_type="PANDAR128",
+                start_us=timestamp_us,
+                end_us=end_us,
+                start_pose=start_pose,
+                end_pose=end_pose,
+                dynamic_objects=baseline_objects,
+            )
             edited_lidar = client.render_lidar(
                 lidar_id="lidar_top",
                 device_type="PANDAR128",
@@ -688,12 +946,17 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                 end_pose=end_pose,
                 dynamic_objects=edited_objects,
             )
-            if baseline_lidar.get("status") != "passed" or edited_lidar.get("status") != "passed":
+            if any(
+                response.get("status") != "passed"
+                for response in (baseline_lidar, repeat_lidar, edited_lidar)
+            ):
                 raise RenderError(
                     f"LiDAR render failed at {timestamp_us}: "
-                    f"{baseline_lidar.get('error')} / {edited_lidar.get('error')}"
+                    f"{baseline_lidar.get('error')} / {repeat_lidar.get('error')} / "
+                    f"{edited_lidar.get('error')}"
                 )
             baseline_points, baseline_bytes = _normalize_xyzi(baseline_lidar)
+            repeat_points, repeat_bytes = _normalize_xyzi(repeat_lidar)
             edited_points, edited_bytes = _normalize_xyzi(edited_lidar)
             baseline_target_response, baseline_target_yaw = _target_response_pose(
                 scene, end_us, None
@@ -702,19 +965,53 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                 scene, end_us, target_delta
             )
             baseline_bin = lidar_dir / f"{frame_index:06d}_original.xyzi.bin"
+            repeat_bin = lidar_dir / f"{frame_index:06d}_repeat.xyzi.bin"
             edited_bin = lidar_dir / f"{frame_index:06d}_edited.xyzi.bin"
             baseline_bin.write_bytes(baseline_bytes)
+            repeat_bin.write_bytes(repeat_bytes)
             edited_bin.write_bytes(edited_bytes)
             baseline_rgb, baseline_rgb_bytes = _decode_rgb(
                 baseline_rgb_response, "original"
+            )
+            repeat_rgb, repeat_rgb_bytes = _decode_rgb(
+                repeat_rgb_response, "repeat"
             )
             edited_rgb, edited_rgb_bytes = _decode_rgb(
                 edited_rgb_response, "edited"
             )
             baseline_rgb_path = rgb_dir / f"{frame_index:06d}_original.jpg"
+            repeat_rgb_path = rgb_dir / f"{frame_index:06d}_repeat.jpg"
             edited_rgb_path = rgb_dir / f"{frame_index:06d}_edited.jpg"
             baseline_rgb_path.write_bytes(baseline_rgb_bytes)
+            repeat_rgb_path.write_bytes(repeat_rgb_bytes)
             edited_rgb_path.write_bytes(edited_rgb_bytes)
+            lidar_difference = _voxel_difference(
+                baseline_points, repeat_points, edited_points
+            )
+            rgb_difference = _rgb_difference(
+                baseline_rgb, repeat_rgb, edited_rgb
+            )
+            baseline_reference_mask = _projected_cuboid_mask(
+                scene, end_us, mid_us, None, 800, 450
+            )
+            edited_reference_mask = _projected_cuboid_mask(
+                scene, end_us, mid_us, target_delta, 800, 450
+            )
+            reference_mask = baseline_reference_mask | edited_reference_mask
+            rgb_signal_mask = rgb_difference["signal_mask"]
+            rgb_in_reference = rgb_signal_mask & reference_mask
+            rgb_background = rgb_signal_mask & ~reference_mask
+            projected_overlap = _projected_delta_overlap(
+                scene,
+                baseline_points,
+                edited_points,
+                lidar_difference["signal_removed"],
+                lidar_difference["signal_added"],
+                end_us,
+                mid_us,
+                rgb_signal_mask,
+                lidar_difference["voxel_size_m"],
+            )
             baseline_lidar_view, baseline_target_return_count = _camera_lidar(
                 scene,
                 baseline_points,
@@ -724,6 +1021,11 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                 target_response=baseline_target_response,
                 target_yaw_rad=baseline_target_yaw,
                 target_delta=None,
+                highlight_cells=lidar_difference["signal_removed"],
+                highlight_color=(255, 100, 30),
+                highlight_label="blue=removed signal points",
+                rgb_signal_mask=rgb_signal_mask,
+                box_color=(190, 190, 190),
             )
             edited_lidar_view, edited_target_return_count = _camera_lidar(
                 scene,
@@ -734,32 +1036,38 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                 target_response=edited_target_response,
                 target_yaw_rad=edited_target_yaw,
                 target_delta=target_delta,
+                highlight_cells=lidar_difference["signal_added"],
+                highlight_color=(0, 220, 255),
+                highlight_label="yellow=added signal points",
+                rgb_signal_mask=rgb_signal_mask,
+                box_color=(120, 220, 255),
+            )
+            bev_view = _bev_overlay(
+                baseline_points,
+                edited_points,
+                "BEV A/B overlay | fixed sensor-local coordinates",
+                baseline_only=lidar_difference["signal_removed"],
+                edited_only=lidar_difference["signal_added"],
+                baseline_target_response=baseline_target_response,
+                edited_target_response=edited_target_response,
+                voxel_m=lidar_difference["voxel_size_m"],
+            )
+            evidence_panel = _evidence_panel(
+                rgb_signal_pixel_count=rgb_difference["signal_pixel_count"],
+                lidar_added_count=len(lidar_difference["signal_added"]),
+                lidar_removed_count=len(lidar_difference["signal_removed"]),
+                projected_hit_ratio=projected_overlap["rgb_signal_hit_ratio"],
             )
             grid = np.vstack(
                 (
                     np.hstack(
                         (
-                            _label_rgb(baseline_rgb, "Original camera_front RGB"),
-                            baseline_lidar_view,
+                            _label_rgb(baseline_rgb, "CAMERA_FRONT | baseline | target = white minivan"),
+                            _label_rgb(edited_rgb, "CAMERA_FRONT | edited | target = white minivan"),
                         )
                     ),
-                    np.hstack(
-                        (
-                            _label_rgb(edited_rgb, "Lead-vehicle edit camera_front RGB"),
-                            edited_lidar_view,
-                        )
-                    ),
+                    np.hstack((bev_view, evidence_panel)),
                 )
-            )
-            cv2.putText(
-                grid,
-                f"V04 | 20 FPS | t={timestamp_us}",
-                (1170, 438),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.48,
-                (255, 255, 255),
-                1,
-                cv2.LINE_AA,
             )
             frame_path = frames_dir / f"{frame_index:06d}.jpg"
             if not cv2.imwrite(str(frame_path), grid, [cv2.IMWRITE_JPEG_QUALITY, 92]):
@@ -777,6 +1085,9 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                     "original_path": str(baseline_rgb_path.relative_to(output_dir)),
                     "original_sha256": sha256_bytes(baseline_rgb_bytes),
                     "original_request_sha256": baseline_rgb_response.get("request_digest"),
+                    "repeat_path": str(repeat_rgb_path.relative_to(output_dir)),
+                    "repeat_sha256": sha256_bytes(repeat_rgb_bytes),
+                    "repeat_request_sha256": repeat_rgb_response.get("request_digest"),
                     "edited_path": str(edited_rgb_path.relative_to(output_dir)),
                     "edited_sha256": sha256_bytes(edited_rgb_bytes),
                     "edited_request_sha256": edited_rgb_response.get("request_digest"),
@@ -785,6 +1096,9 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                     "original_path": str(baseline_bin.relative_to(output_dir)),
                     "original_sha256": sha256_bytes(baseline_bytes),
                     "original_point_count": len(baseline_points),
+                    "repeat_path": str(repeat_bin.relative_to(output_dir)),
+                    "repeat_sha256": sha256_bytes(repeat_bytes),
+                    "repeat_point_count": len(repeat_points),
                     "edited_path": str(edited_bin.relative_to(output_dir)),
                     "edited_sha256": sha256_bytes(edited_bytes),
                     "edited_point_count": len(edited_points),
@@ -801,6 +1115,40 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                     "edited_target_response_yaw_deg": math.degrees(edited_target_yaw),
                     "original_target_roi_return_count": baseline_target_return_count,
                     "edited_target_roi_return_count": edited_target_return_count,
+                },
+                "consistency": {
+                    "rgb_control_mean_abs_error": rgb_difference["control_mean_abs_error"],
+                    "rgb_control_p995_abs_error": rgb_difference["control_p995_abs_error"],
+                    "rgb_change_threshold": rgb_difference["threshold"],
+                    "rgb_signal_pixel_count": rgb_difference["signal_pixel_count"],
+                    "rgb_signal_in_reference_pixel_count": int(rgb_in_reference.sum()),
+                    "rgb_signal_background_pixel_count": int(rgb_background.sum()),
+                    "rgb_signal_background_fraction": float(
+                        rgb_background.sum() / max(1, rgb_difference["signal_pixel_count"])
+                    ),
+                    "lidar_diff_voxel_size_m": lidar_difference["voxel_size_m"],
+                    "lidar_control_added_voxel_count": len(lidar_difference["control_added"]),
+                    "lidar_control_removed_voxel_count": len(lidar_difference["control_removed"]),
+                    "lidar_raw_added_voxel_count": len(lidar_difference["edited_only"]),
+                    "lidar_raw_removed_voxel_count": len(lidar_difference["baseline_only"]),
+                    "lidar_signal_added_voxel_count": len(lidar_difference["signal_added"]),
+                    "lidar_signal_removed_voxel_count": len(lidar_difference["signal_removed"]),
+                    "lidar_signal_added_in_target_roi": _target_cell_count(
+                        lidar_difference["signal_added"],
+                        edited_target_response,
+                        edited_target_yaw,
+                        lidar_difference["voxel_size_m"],
+                    ),
+                    "lidar_signal_removed_in_target_roi": _target_cell_count(
+                        lidar_difference["signal_removed"],
+                        baseline_target_response,
+                        baseline_target_yaw,
+                        lidar_difference["voxel_size_m"],
+                    ),
+                    "lidar_delta_projected_point_count": projected_overlap["projected_point_count"],
+                    "lidar_delta_rgb_signal_hit_count": projected_overlap["rgb_signal_hit_count"],
+                    "lidar_delta_rgb_signal_hit_ratio": projected_overlap["rgb_signal_hit_ratio"],
+                    "reference_geometry": "projected controllable-track cuboid; not point ownership",
                 },
                 "rgb_lidar_timestamp_delta_us": 0,
                 "rpc_latency_ms": (time.perf_counter() - started) * 1000.0,
@@ -830,7 +1178,7 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
         20.0,
     )
     result = {
-        "schema_version": "nsb.v04-multimodal-alignment.v1",
+        "schema_version": "nsb.v04-multimodal-consistency.v2",
         "status": "passed",
         "video": str(video_path),
         "video_sha256": sha256_file(video_path),
@@ -853,9 +1201,17 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
             "response_to_artifact_axes": RESPONSE_TO_ARTIFACT_AXES.reshape(-1).tolist(),
             "projection": "camera_front perspective using camera intrinsics",
             "camera_reference_timestamp": "RGB wire midpoint; LiDAR points remain in end-of-spin coordinates",
-            "target_annotation": "oriented target cuboid projected into camera_front",
-            "roi_semantics": "oriented geometry ROI; highlighted returns are not actor-owned labels",
+            "target_annotation": "projected controllable-track reference geometry; not point ownership",
+            "roi_semantics": "oriented reference geometry; changed returns are paired voxel differences, not actor-owned labels",
             "server_implementation": "nre/render/render.py: pc_sensor = transform_point_cloud(pc_nre, T_nre_sensor_end)",
+        },
+        "consistency": {
+            "rgb_control": "same baseline request rendered twice; threshold derived from A/A error",
+            "lidar_control": "same baseline request rendered twice; control-only voxel changes removed from A/B signal",
+            "lidar_difference_voxel_size_m": LIDAR_DIFF_VOXEL_M,
+            "rgb_change_visual": "green contour is RGB A/B signal projected on the camera-plane LiDAR panels",
+            "lidar_change_visual": "blue is baseline-only signal; yellow is edited-only signal",
+            "claim": "counterfactual geometric cross-modal consistency, not per-point actor ownership",
         },
         "rgb_lidar_timestamp_alignment_max_us": 0,
         "target_delta_m": target_delta,
@@ -867,7 +1223,8 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
             "V04 is a uniform 20 FPS playback baseline over approximately 20 Hz live render windows.",
             "Actor and rig gaps up to the declared playback-only interpolation limit are interpolated.",
             "RGB is sampled at each logical window midpoint; LiDAR is projected from its end-of-spin frame into that camera pose.",
-            "The highlighted LiDAR ROI is geometric evidence, not per-point actor ownership.",
+            "The reference target geometry is derived from the controllable track pose; it is not a per-point ownership label.",
+            "RGB/LiDAR differences are paired A/A-controlled changes; occlusion and ray sampling can produce modality-specific differences.",
             "No source LiDAR, static point-cloud copying, optical flow, or synthetic points were used.",
         ],
     }

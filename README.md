@@ -104,30 +104,21 @@ formally passing only when all three cases have zero dropped frames, complete
 metadata, valid videos, passed probes, matching immutable identities, and the
 finite Chamfer/ray-drop measurements.
 
-## RGB/LiDAR Consistency Probe
+## V04 RGB/LiDAR Consistency Video
 
-V02 also has a separate, fail-closed multimodal probe. It uses one logical
-LiDAR spin window and the same `lidar_top` pose and dynamic-object payload for
-baseline and edited requests. The visual is a four-panel PNG: six-camera RGB
-baseline, six-camera RGB edit, baseline LiDAR BEV, and a baseline/edit LiDAR
-overlay. The JSON source report records payload hashes, A/A repeatability,
-target and non-target digests, point counts, and the exact time window.
+V04 is the final multimodal visualization. It renders baseline, A/A control,
+and edited RGB/LiDAR responses on the same logical windows. The video keeps the
+front-camera comparison on top and shows a fixed-scale LiDAR BEV difference
+overlay below. A/A-controlled voxel and pixel differences are recorded in
+`evidence.json`; the result does not claim per-point actor ownership or rigid
+target registration.
 
 ```bash
-python3 scripts/render_multimodal_consistency.py \
-  --manifest demo/scene0061/manifest.json \
-  --artifact outputs/nurec_scene0061_renderable_lidar_v3_6cam_40k_formal_attempt_001/9aChcizbAsm4oDQKJMdBHM/artifacts/last.usdz \
+python3 scripts/render_multimodal_alignment_video.py \
   --server-address 127.0.0.1:46443 \
-  --case V02 \
-  --output-dir outputs/nurec_scene0061_demo_multimodal \
+  --output-dir outputs/nurec_scene0061_final/multimodal_20fps \
   --overwrite
 ```
-
-The probe exits non-zero and emits no passing source report when live
-`render_lidar` returns an empty point cloud or the sensor coordinate frame has
-not been independently anchored. This is intentional: RGB edit evidence must
-not be promoted to RGB/LiDAR world-consistency evidence without real XYZI
-payloads and coordinate validation.
 
 ## Output Layout
 
@@ -143,12 +134,13 @@ outputs/nurec_scene0061_demo/<case-id>/
   lead_vehicle_edit.mp4    # V02
   camera_pose_sweep.mp4     # V03; stitched grid includes pose readout
 
-outputs/nurec_scene0061_demo_multimodal/
-  multimodal_consistency_probe.png
-  multimodal_consistency_probe.json
-  rgb/{baseline,edited}_<camera>.jpg
-  lidar/{baseline,edited}.xyzi.bin
-  rgb_lidar_actor_change_source_report.json
+outputs/nurec_scene0061_final/multimodal_20fps/
+  frames/*.jpg                 # final 1600x900 V04 frames
+  rgb/{original,repeat,edited}.jpg
+  lidar/{original,repeat,edited}.xyzi.bin
+  frames.jsonl
+  evidence.json
+  V04_multimodal_alignment_20fps.mp4
 ```
 
 The `outputs/` tree is ignored by Git. Do not add USDZ, checkpoint, dataset,

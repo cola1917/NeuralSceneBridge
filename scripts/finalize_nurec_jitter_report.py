@@ -52,8 +52,7 @@ FORMAL_20HZ_ROOT = REPO_ROOT / "outputs/nurec_scene0061_demo_20hz"
 STRICT_RAW_20HZ_ROOT = REPO_ROOT / "outputs/nurec_scene0061_demo_20hz_raw"
 TARGET_ONLY_RAW_20HZ_ROOT = REPO_ROOT / "outputs/nurec_scene0061_demo_20hz_target_only"
 MULTIMODAL_ROOTS = (
-    REPO_ROOT / "outputs/nurec_scene0061_demo_multimodal_live",
-    REPO_ROOT / "outputs/nurec_scene0061_demo_multimodal",
+    REPO_ROOT / "outputs/nurec_scene0061_final/multimodal_20fps",
 )
 CAMERA_ID = "camera_front"
 CAMERA_WIDTH = 800
@@ -315,37 +314,45 @@ def _raw_20hz_evidence() -> dict[str, Any]:
 
 
 def _multimodal_evidence() -> dict[str, Any]:
-    """Load the newest RGB/LiDAR consistency probe without promoting failure."""
+    """Load the final V04 RGB/LiDAR evidence without promoting failure."""
 
     for root in MULTIMODAL_ROOTS:
-        probe_path = root / "multimodal_consistency_probe.json"
-        if not probe_path.is_file():
+        evidence_path = root / "evidence.json"
+        if not evidence_path.is_file():
             continue
         try:
-            probe = _read_json(probe_path)
+            evidence = _read_json(evidence_path)
         except (OSError, ValueError, json.JSONDecodeError):
             continue
+        consistency = evidence.get("consistency")
+        if not isinstance(consistency, Mapping):
+            consistency = {}
+        lidar = evidence.get("lidar")
+        if not isinstance(lidar, Mapping):
+            lidar = {}
         result = {
             "root": str(root),
-            "probe": str(probe_path),
-            "status": probe.get("status"),
-            "reason": probe.get("reason"),
-            "visual": probe.get("visual_path"),
-            "timestamp_us": probe.get("timestamp_us"),
-            "window_us": probe.get("window_us"),
-            "camera_ids": probe.get("camera_ids"),
-            "lidar_id": probe.get("lidar_id"),
-            "rgb_actor_changed": probe.get("rgb_actor_changed"),
-            "lidar_actor_changed": probe.get("lidar_actor_changed"),
-            "baseline_point_count": probe.get("baseline_point_count"),
-            "edited_point_count": probe.get("edited_point_count"),
-            "voxel_added_count": probe.get("voxel_added_count"),
-            "voxel_removed_count": probe.get("voxel_removed_count"),
+            "probe": str(evidence_path),
+            "status": evidence.get("status"),
+            "reason": consistency.get("claim") or "; ".join(evidence.get("limitations", [])),
+            "visual": evidence.get("video"),
+            "timestamp_us": evidence.get("timestamp_range_us"),
+            "window_us": evidence.get("rgb_lidar_timestamp_alignment_max_us"),
+            "camera_ids": ["camera_front"],
+            "lidar_id": "lidar_top",
+            "rgb_actor_changed": "A/B signal recorded",
+            "lidar_actor_changed": "A/B signal recorded",
+            "baseline_point_count": None,
+            "edited_point_count": None,
+            "voxel_added_count": None,
+            "voxel_removed_count": None,
+            "claim": consistency.get("claim"),
+            "coordinate_frame": lidar.get("coordinate_frame"),
         }
         return result
     return {
         "status": "not_run",
-        "reason": "No RGB/LiDAR consistency probe JSON was found",
+        "reason": "No final V04 RGB/LiDAR evidence.json was found",
     }
 
 

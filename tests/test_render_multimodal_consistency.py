@@ -1,7 +1,4 @@
-import hashlib
 import importlib.util
-from pathlib import Path
-import tempfile
 import unittest
 
 import numpy as np
@@ -12,42 +9,6 @@ _HAS_CV2 = importlib.util.find_spec("cv2") is not None
 
 @unittest.skipUnless(_HAS_CV2, "requires OpenCV")
 class RenderMultimodalConsistencyTests(unittest.TestCase):
-    def test_xyzi_voxel_signature_detects_a_local_actor_change(self):
-        from scripts.render_multimodal_consistency import _voxel_signature
-
-        baseline = np.asarray(
-            [[1.01, 2.02, 0.0, 0.5], [4.01, 5.02, 0.0, 0.4]], dtype=np.float32
-        )
-        edited = np.asarray(
-            [[1.11, 2.02, 0.0, 0.5], [4.01, 5.02, 0.0, 0.4]], dtype=np.float32
-        )
-        self.assertNotEqual(_voxel_signature(baseline), _voxel_signature(edited))
-
-    def test_world_to_sensor_uses_rigid_inverse(self):
-        from scripts.render_multimodal_consistency import _world_to_sensor
-
-        matrix = [[1, 0, 0, 10], [0, 1, 0, 20], [0, 0, 1, 3], [0, 0, 0, 1]]
-        self.assertEqual(_world_to_sensor(matrix, [11, 22, 3]), [1.0, 2.0, 0.0])
-
-    def test_file_reference_is_relative_and_hash_bound(self):
-        from scripts.render_multimodal_consistency import _file_ref
-
-        with tempfile.TemporaryDirectory() as tempdir:
-            root = Path(tempdir)
-            path = root / "lidar" / "baseline.xyzi.bin"
-            path.parent.mkdir()
-            payload = b"xyzi"
-            path.write_bytes(payload)
-            ref = _file_ref(
-                path,
-                root=root,
-                kind="lidar",
-                encoding="float32_xyzi_little_endian",
-            )
-            self.assertEqual(ref["path"], "lidar/baseline.xyzi.bin")
-            self.assertEqual(ref["sha256"], hashlib.sha256(payload).hexdigest())
-            self.assertEqual(ref["size_bytes"], len(payload))
-
     def test_v04_target_pose_maps_artifact_right_forward_to_response_forward_right(self):
         from scripts.render_multimodal_alignment_video import (
             TARGET_TRACK_ID,
@@ -112,6 +73,37 @@ class RenderMultimodalConsistencyTests(unittest.TestCase):
             RESPONSE_TO_ARTIFACT_AXES,
             np.asarray([[0.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]),
         )
+
+    def test_v04_voxel_difference_removes_a_a_control_change(self):
+        from scripts.render_multimodal_alignment_video import _voxel_difference
+
+        baseline = np.asarray(
+            [[1.01, 2.01, 0.0, 0.5], [4.01, 5.01, 0.0, 0.4]],
+            dtype=np.float32,
+        )
+        control = np.asarray(
+            [[1.01, 2.01, 0.0, 0.5], [4.11, 5.01, 0.0, 0.4]],
+            dtype=np.float32,
+        )
+        edited = np.asarray(
+            [[1.01, 2.01, 0.0, 0.5], [4.21, 5.01, 0.0, 0.4]],
+            dtype=np.float32,
+        )
+        difference = _voxel_difference(baseline, control, edited)
+        self.assertEqual(len(difference["control_added"]), 1)
+        self.assertEqual(len(difference["signal_added"]), 1)
+        self.assertEqual(len(difference["signal_removed"]), 0)
+
+    def test_v04_rgb_difference_uses_repeat_control_threshold(self):
+        from scripts.render_multimodal_alignment_video import _rgb_difference
+
+        baseline = np.zeros((4, 4, 3), dtype=np.uint8)
+        control = baseline.copy()
+        edited = baseline.copy()
+        edited[1, 2] = (30, 30, 30)
+        difference = _rgb_difference(baseline, control, edited)
+        self.assertEqual(difference["signal_pixel_count"], 1)
+        self.assertEqual(difference["control_mean_abs_error"], 0.0)
 
 
 if __name__ == "__main__":

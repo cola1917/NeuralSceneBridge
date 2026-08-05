@@ -81,30 +81,24 @@ Use `--probe-only` to verify the V02 A/A/B or V03 camera probes without
 encoding a sequence. Never point a case at a different training run: the
 manifest hash and artifact identity are part of every evidence record.
 
-## RGB/LiDAR Consistency Visualization
+## V04 RGB/LiDAR Consistency Visualization
 
-The optional V02 sidecar keeps RGB and LiDAR on one logical interval. It
-renders baseline and edited RGB six-camera grids, baseline and edited
-`lidar_top` responses, and writes a four-panel `multimodal_consistency_probe.png`.
-The accompanying source report binds each returned JPEG/float32 XYZI payload
-to its SHA-256, timestamp window, sensor pose, target track, and non-target
-actor digest. The LiDAR panels use raw sensor-local x/y coordinates and label
-the axis convention as unverified until a same-frame native CARLA anchor exists.
+V04 is the final front-camera and LiDAR comparison. It performs an A/A control
+request and an edited request on the same logical render windows, removes
+control-only changes from the LiDAR voxel difference, and writes the fixed
+1600x900 comparison video with its frame evidence.
 
 ```bash
-python3 scripts/render_multimodal_consistency.py \
-  --case V02 \
-  --manifest demo/scene0061/manifest.json \
+python3 scripts/render_multimodal_alignment_video.py \
   --server-address 127.0.0.1:46443 \
-  --artifact outputs/nurec_scene0061_renderable_lidar_v3_6cam_40k_formal_attempt_001/9aChcizbAsm4oDQKJMdBHM/artifacts/last.usdz \
-  --output-dir outputs/nurec_scene0061_demo_multimodal \
+  --output-dir outputs/nurec_scene0061_final/multimodal_20fps \
   --overwrite
 ```
 
-The command fails closed when `render_lidar` returns no points, when A/A is
-not repeatable, or when the edited request does not change the LiDAR payload.
-An empty response is an unavailable optional evidence result, not a passing
-RGB/LiDAR consistency claim.
+The evidence distinguishes RGB response changes and LiDAR response changes,
+but the metadata center and projected geometry are references rather than
+per-point ownership labels. The result therefore documents counterfactual
+cross-modal response, not a strict rigid or pointwise registration proof.
 
 ## Build The Quality Report
 
