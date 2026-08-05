@@ -91,6 +91,28 @@ class RenderMultimodalConsistencyTests(unittest.TestCase):
         selected = _target_roi(points, np.asarray([10.0, -2.0, 0.0], dtype=np.float32))
         self.assertEqual(selected.tolist(), [True, True, False, False])
 
+    def test_v04_target_roi_rotates_with_target_yaw(self):
+        from scripts.render_multimodal_alignment_video import _target_roi
+
+        points = np.asarray(
+            [[12.0, 0.0, 0.0], [10.0, 2.9, 0.0], [10.0, 1.4, 0.0], [8.0, 0.0, 0.0]],
+            dtype=np.float32,
+        )
+        selected = _target_roi(
+            points,
+            np.asarray([10.0, 0.0, 0.0], dtype=np.float32),
+            np.pi / 2.0,
+        )
+        self.assertEqual(selected.tolist(), [False, True, True, False])
+
+    def test_v04_response_to_artifact_axes_swaps_horizontal_basis(self):
+        from scripts.render_multimodal_alignment_video import RESPONSE_TO_ARTIFACT_AXES
+
+        np.testing.assert_array_equal(
+            RESPONSE_TO_ARTIFACT_AXES,
+            np.asarray([[0.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

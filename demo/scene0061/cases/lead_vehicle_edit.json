@@ -44,6 +44,7 @@
       "y": 0.0,
       "z": 0.0
     },
+    "translation_frame": "world",
     "rotation_deg": {
       "roll": 0.0,
       "pitch": 0.0,

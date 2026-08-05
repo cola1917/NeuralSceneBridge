@@ -12,7 +12,7 @@ import shutil
 import struct
 import sys
 import time
-from typing import Any
+from typing import Any, Mapping
 
 import cv2
 import numpy as np
@@ -38,8 +38,13 @@ ARTIFACT = REPO_ROOT / (
 )
 TARGET_TRACK_ID = "c1958768d48640948f6053d04cffd35b"
 SENSOR_TO_BEV_AXES = np.eye(3, dtype=np.float32)
+RESPONSE_TO_ARTIFACT_AXES = np.asarray(
+    [[0.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
+    dtype=np.float32,
+)
 TARGET_HALF_LENGTH_M = 3.0
 TARGET_HALF_WIDTH_M = 1.5
+TARGET_HALF_HEIGHT_M = 1.0
 
 
 def sha256_bytes(body: bytes) -> str:
@@ -115,8 +120,8 @@ def _select_uniform(
 
 def _normalize_xyzi(response: dict[str, Any]) -> tuple[np.ndarray, bytes]:
     # NRE 26.04 render.py already applies T_nre_sensor_end before constructing
-    # LidarRenderReturn. V04 is CARLA-independent, so retain that sensor-local
-    # basis and project its x/y axes directly into the BEV panel.
+    # LidarRenderReturn. V04 retains that sensor-local response basis; the
+    # camera projection later maps it through the artifact LiDAR calibration.
     points = np.asarray(response["point_xyzs"], dtype=np.float32).reshape((-1, 3))
     intensities = np.asarray(response["point_intensities"], dtype=np.float32)
     sensor_points = points @ SENSOR_TO_BEV_AXES.T
@@ -124,11 +129,11 @@ def _normalize_xyzi(response: dict[str, Any]) -> tuple[np.ndarray, bytes]:
     return xyzi, xyzi.tobytes()
 
 
-def _target_response_position(
+def _target_object(
     scene: ArtifactScene,
     timestamp_us: int,
     target_delta: dict[str, float] | None,
-) -> np.ndarray:
+) -> dict[str, Any]:
     objects = scene.dynamic_objects(
         timestamp_us,
         mode="controllable",
@@ -140,6 +145,31 @@ def _target_response_position(
     )
     if target is None:
         raise RenderError(f"target pose is unavailable at {timestamp_us}")
+    return target
+
+
+def _rotation_matrix_from_xyzw(quaternion: list[float]) -> np.ndarray:
+    if len(quaternion) != 4:
+        raise RenderError("target quaternion must contain four values")
+    x, y, z, w = (float(value) for value in quaternion)
+    norm = math.sqrt(x * x + y * y + z * z + w * w) or 1.0
+    x, y, z, w = x / norm, y / norm, z / norm, w / norm
+    return np.asarray(
+        [
+            [1.0 - 2.0 * (y * y + z * z), 2.0 * (x * y - z * w), 2.0 * (x * z + y * w)],
+            [2.0 * (x * y + z * w), 1.0 - 2.0 * (x * x + z * z), 2.0 * (y * z - x * w)],
+            [2.0 * (x * z - y * w), 2.0 * (y * z + x * w), 1.0 - 2.0 * (x * x + y * y)],
+        ],
+        dtype=np.float64,
+    )
+
+
+def _target_response_pose(
+    scene: ArtifactScene,
+    timestamp_us: int,
+    target_delta: dict[str, float] | None,
+) -> tuple[np.ndarray, float]:
+    target = _target_object(scene, timestamp_us, target_delta)
     matrix = np.asarray(
         scene.lidar_pose_matrix("lidar_top", timestamp_us), dtype=np.float64
     )
@@ -147,13 +177,40 @@ def _target_response_position(
     native = matrix[:3, :3].T @ (world - matrix[:3, 3])
     # The artifact calibration basis is x-right/y-forward. The NRE LiDAR
     # response is x-forward/y-right, so swap the horizontal components.
-    return np.asarray([native[1], native[0], native[2]], dtype=np.float32)
+    position = np.asarray([native[1], native[0], native[2]], dtype=np.float32)
+    target_rotation = _rotation_matrix_from_xyzw(target["pose"][3:7])
+    target_forward_native = matrix[:3, :3].T @ target_rotation[:, 0]
+    target_forward_response = np.asarray(
+        [target_forward_native[1], target_forward_native[0]], dtype=np.float64
+    )
+    yaw_rad = math.atan2(
+        float(target_forward_response[1]), float(target_forward_response[0])
+    )
+    return position, yaw_rad
 
 
-def _target_roi(points: np.ndarray, target_response: np.ndarray) -> np.ndarray:
+def _target_response_position(
+    scene: ArtifactScene,
+    timestamp_us: int,
+    target_delta: dict[str, float] | None,
+) -> np.ndarray:
+    position, _ = _target_response_pose(scene, timestamp_us, target_delta)
+    return position
+
+
+def _target_roi(
+    points: np.ndarray,
+    target_response: np.ndarray,
+    target_yaw_rad: float = 0.0,
+) -> np.ndarray:
+    delta = points[:, :2] - target_response[:2]
+    cos_yaw = math.cos(target_yaw_rad)
+    sin_yaw = math.sin(target_yaw_rad)
+    target_forward = delta[:, 0] * cos_yaw + delta[:, 1] * sin_yaw
+    target_right = -delta[:, 0] * sin_yaw + delta[:, 1] * cos_yaw
     return (
-        (np.abs(points[:, 0] - target_response[0]) <= TARGET_HALF_LENGTH_M)
-        & (np.abs(points[:, 1] - target_response[1]) <= TARGET_HALF_WIDTH_M)
+        (np.abs(target_forward) <= TARGET_HALF_LENGTH_M)
+        & (np.abs(target_right) <= TARGET_HALF_WIDTH_M)
     )
 
 
@@ -262,6 +319,170 @@ def _bev(
     return image, int(len(target_points))
 
 
+def _target_world_cuboid(
+    scene: ArtifactScene,
+    timestamp_us: int,
+    target_delta: dict[str, float] | None,
+) -> np.ndarray:
+    target = _target_object(scene, timestamp_us, target_delta)
+    center = np.asarray(target["pose"][:3], dtype=np.float64)
+    rotation = _rotation_matrix_from_xyzw(target["pose"][3:7])
+    local = np.asarray(
+        [
+            [TARGET_HALF_LENGTH_M, -TARGET_HALF_WIDTH_M, -TARGET_HALF_HEIGHT_M],
+            [TARGET_HALF_LENGTH_M, TARGET_HALF_WIDTH_M, -TARGET_HALF_HEIGHT_M],
+            [-TARGET_HALF_LENGTH_M, TARGET_HALF_WIDTH_M, -TARGET_HALF_HEIGHT_M],
+            [-TARGET_HALF_LENGTH_M, -TARGET_HALF_WIDTH_M, -TARGET_HALF_HEIGHT_M],
+            [TARGET_HALF_LENGTH_M, -TARGET_HALF_WIDTH_M, TARGET_HALF_HEIGHT_M],
+            [TARGET_HALF_LENGTH_M, TARGET_HALF_WIDTH_M, TARGET_HALF_HEIGHT_M],
+            [-TARGET_HALF_LENGTH_M, TARGET_HALF_WIDTH_M, TARGET_HALF_HEIGHT_M],
+            [-TARGET_HALF_LENGTH_M, -TARGET_HALF_WIDTH_M, TARGET_HALF_HEIGHT_M],
+        ],
+        dtype=np.float64,
+    )
+    return local @ rotation.T + center
+
+
+def _camera_project_world(
+    scene: ArtifactScene,
+    world_points: np.ndarray,
+    timestamp_us: int,
+    width: int,
+    height: int,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    intrinsics = scene.camera_intrinsics("camera_front")
+    resolution = intrinsics.get("resolution") or [width, height]
+    scale_x = width / float(resolution[0])
+    scale_y = height / float(resolution[1])
+    focal = intrinsics.get("focal_length") or [1.0, 1.0]
+    principal = intrinsics.get("principal_point") or [width / 2.0, height / 2.0]
+    fx, fy = float(focal[0]) * scale_x, float(focal[1]) * scale_y
+    cx, cy = float(principal[0]) * scale_x, float(principal[1]) * scale_y
+    pose = np.asarray(scene.sensor_pose_matrix("camera_front", timestamp_us), dtype=np.float64)
+    world = np.asarray(world_points, dtype=np.float64).reshape((-1, 3))
+    camera = (world - pose[:3, 3]) @ pose[:3, :3]
+    depth = camera[:, 2]
+    uv = np.empty((len(camera), 2), dtype=np.float32)
+    uv[:, 0] = cx + fx * camera[:, 0] / np.maximum(depth, 1e-6)
+    uv[:, 1] = cy + fy * camera[:, 1] / np.maximum(depth, 1e-6)
+    return camera, uv, depth > 0.2
+
+
+def _draw_projected_cuboid(
+    image: np.ndarray,
+    uv: np.ndarray,
+    in_front: np.ndarray,
+    color: tuple[int, int, int],
+) -> bool:
+    height, width = image.shape[:2]
+    in_view = (
+        in_front
+        & (uv[:, 0] >= 0)
+        & (uv[:, 0] < width)
+        & (uv[:, 1] >= 0)
+        & (uv[:, 1] < height)
+    )
+    if int(in_view.sum()) < 4:
+        return False
+    edges = (
+        (0, 1), (1, 2), (2, 3), (3, 0),
+        (4, 5), (5, 6), (6, 7), (7, 4),
+        (0, 4), (1, 5), (2, 6), (3, 7),
+    )
+    for first, second in edges:
+        if in_front[first] and in_front[second]:
+            start = tuple(int(round(value)) for value in uv[first])
+            end = tuple(int(round(value)) for value in uv[second])
+            cv2.line(image, start, end, color, 2, cv2.LINE_AA)
+    return True
+
+
+def _camera_lidar(
+    scene: ArtifactScene,
+    points: np.ndarray,
+    title: str,
+    *,
+    lidar_timestamp_us: int,
+    camera_timestamp_us: int,
+    target_response: np.ndarray,
+    target_yaw_rad: float,
+    target_delta: dict[str, float] | None,
+) -> tuple[np.ndarray, int]:
+    width, height = 800, 450
+    image = np.zeros((height, width, 3), dtype=np.uint8)
+    xyz = np.asarray(points[:, :3], dtype=np.float32)
+    lidar_pose = np.asarray(
+        scene.lidar_pose_matrix("lidar_top", lidar_timestamp_us), dtype=np.float64
+    )
+    artifact_xyz = xyz @ RESPONSE_TO_ARTIFACT_AXES.T
+    world = artifact_xyz @ lidar_pose[:3, :3].T + lidar_pose[:3, 3]
+    camera, uv, in_front = _camera_project_world(
+        scene, world, camera_timestamp_us, width, height
+    )
+    visible = (
+        in_front
+        & (uv[:, 0] >= 0)
+        & (uv[:, 0] < width)
+        & (uv[:, 1] >= 0)
+        & (uv[:, 1] < height)
+    )
+    target_mask = _target_roi(xyz, target_response, target_yaw_rad)
+    target_visible = visible & target_mask
+    visible_depth = camera[visible, 2]
+    if len(visible_depth):
+        low = float(np.percentile(visible_depth, 5))
+        high = float(np.percentile(visible_depth, 95))
+    else:
+        low, high = 1.0, 50.0
+    normalized = np.clip(
+        (camera[:, 2] - low) / max(high - low, 1.0), 0.0, 1.0
+    )
+    colors = cv2.applyColorMap(
+        (255.0 * (1.0 - normalized)).astype(np.uint8), cv2.COLORMAP_TURBO
+    )[:, 0, :]
+    indices = np.flatnonzero(visible)
+    if len(indices):
+        indices = indices[np.argsort(camera[indices, 2])[::-1]]
+    for index in indices:
+        pixel = (
+            int(np.clip(round(float(uv[index, 0])), 0, width - 1)),
+            int(np.clip(round(float(uv[index, 1])), 0, height - 1)),
+        )
+        color = (0, 220, 255) if target_visible[index] else tuple(int(v) for v in colors[index])
+        cv2.circle(image, pixel, 1, color, -1, cv2.LINE_AA)
+
+    cuboid_world = _target_world_cuboid(scene, lidar_timestamp_us, target_delta)
+    _, cuboid_uv, cuboid_front = _camera_project_world(
+        scene, cuboid_world, camera_timestamp_us, width, height
+    )
+    box_visible = _draw_projected_cuboid(
+        image, cuboid_uv, cuboid_front, (0, 220, 255)
+    )
+    cv2.rectangle(image, (0, 0), (width - 1, 30), (0, 0, 0), -1)
+    cv2.putText(
+        image,
+        title,
+        (10, 21),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (255, 255, 255),
+        1,
+        cv2.LINE_AA,
+    )
+    cv2.putText(
+        image,
+        f"camera_front projection | {len(points):,} points | {int(target_visible.sum()):,} oriented ROI returns"
+        + ("" if box_visible else " | target box partial/outside FOV"),
+        (10, 49),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.40,
+        (0, 220, 255),
+        1,
+        cv2.LINE_AA,
+    )
+    return image, int(target_visible.sum())
+
+
 def _label_rgb(image: np.ndarray, title: str) -> np.ndarray:
     result = image.copy()
     cv2.rectangle(result, (0, 0), (result.shape[1] - 1, 30), (0, 0, 0), -1)
@@ -322,8 +543,21 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
     model = scene.lidar_model("lidar_top")
     frequency = float(model["parameters"]["spinning_frequency_hz"])
     window_us = int(round(1_000_000.0 / frequency))
-    target_delta = {"x": 0.5, "y": 0.0, "z": 0.0}
     case = load_json(REPO_ROOT / "demo/scene0061/cases/original_replay.json")
+    edit_case = load_json(REPO_ROOT / "demo/scene0061/cases/lead_vehicle_edit.json")
+    edit_definition = edit_case.get("lead_vehicle_edit") or {}
+    raw_target_delta = edit_definition.get("translation_m") or {}
+    if not isinstance(raw_target_delta, Mapping):
+        raise RenderError("lead_vehicle_edit.translation_m must be an object")
+    target_delta = {
+        axis: float(raw_target_delta.get(axis, 0.0))
+        for axis in ("x", "y", "z")
+    }
+    target_delta_frame = str(edit_definition.get("translation_frame", "world"))
+    if target_delta_frame != "world":
+        raise RenderError(
+            "V04 currently requires lead_vehicle_edit.translation_frame=world"
+        )
     case_range = case["timestamp_range_us"]
     first_us = int(case_range["start"])
     last_start_us = min(int(case_range["end"]), scene.rig_timestamps[-1]) - window_us
@@ -394,6 +628,7 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
         for frame_index in range(len(records), len(selected)):
             timestamp_us = selected[frame_index]
             end_us = timestamp_us + window_us
+            mid_us = (timestamp_us + end_us) // 2
             baseline_objects = scene.dynamic_objects(
                 timestamp_us, end_timestamp_us=end_us, mode="controllable"
             )
@@ -460,11 +695,11 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                 )
             baseline_points, baseline_bytes = _normalize_xyzi(baseline_lidar)
             edited_points, edited_bytes = _normalize_xyzi(edited_lidar)
-            baseline_target_response = _target_response_position(
-                scene, timestamp_us, None
+            baseline_target_response, baseline_target_yaw = _target_response_pose(
+                scene, end_us, None
             )
-            edited_target_response = _target_response_position(
-                scene, timestamp_us, target_delta
+            edited_target_response, edited_target_yaw = _target_response_pose(
+                scene, end_us, target_delta
             )
             baseline_bin = lidar_dir / f"{frame_index:06d}_original.xyzi.bin"
             edited_bin = lidar_dir / f"{frame_index:06d}_edited.xyzi.bin"
@@ -480,29 +715,38 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
             edited_rgb_path = rgb_dir / f"{frame_index:06d}_edited.jpg"
             baseline_rgb_path.write_bytes(baseline_rgb_bytes)
             edited_rgb_path.write_bytes(edited_rgb_bytes)
-            baseline_bev, baseline_target_return_count = _bev(
+            baseline_lidar_view, baseline_target_return_count = _camera_lidar(
+                scene,
                 baseline_points,
                 f"Original NuRec LiDAR | {len(baseline_points):,} points",
+                lidar_timestamp_us=end_us,
+                camera_timestamp_us=mid_us,
                 target_response=baseline_target_response,
+                target_yaw_rad=baseline_target_yaw,
+                target_delta=None,
             )
-            edited_bev, edited_target_return_count = _bev(
+            edited_lidar_view, edited_target_return_count = _camera_lidar(
+                scene,
                 edited_points,
                 f"Edited NuRec LiDAR | {len(edited_points):,} points",
+                lidar_timestamp_us=end_us,
+                camera_timestamp_us=mid_us,
                 target_response=edited_target_response,
-                reference_response=baseline_target_response,
+                target_yaw_rad=edited_target_yaw,
+                target_delta=target_delta,
             )
             grid = np.vstack(
                 (
                     np.hstack(
                         (
                             _label_rgb(baseline_rgb, "Original camera_front RGB"),
-                            baseline_bev,
+                            baseline_lidar_view,
                         )
                     ),
                     np.hstack(
                         (
                             _label_rgb(edited_rgb, "Lead-vehicle edit camera_front RGB"),
-                            edited_bev,
+                            edited_lidar_view,
                         )
                     ),
                 )
@@ -526,6 +770,9 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                 "dropped": False,
                 "timestamp_us": timestamp_us,
                 "lidar_window_end_us": end_us,
+                "rgb_render_timestamp_us": mid_us,
+                "target_delta_m": target_delta,
+                "target_delta_frame": target_delta_frame,
                 "rgb": {
                     "original_path": str(baseline_rgb_path.relative_to(output_dir)),
                     "original_sha256": sha256_bytes(baseline_rgb_bytes),
@@ -543,8 +790,15 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                     "edited_point_count": len(edited_points),
                     "response_encoding": baseline_lidar.get("response_encoding"),
                     "response_axis_convention": "x_forward_y_right_z_up",
+                    "lidar_reference_timestamp_us": end_us,
+                    "camera_projection_timestamp_us": mid_us,
+                    "projection": "camera_front_perspective",
+                    "response_to_artifact_axes": RESPONSE_TO_ARTIFACT_AXES.reshape(-1).tolist(),
+                    "roi_semantics": "oriented geometry ROI; returns are not actor-owned labels",
                     "original_target_response_position_m": baseline_target_response.tolist(),
                     "edited_target_response_position_m": edited_target_response.tolist(),
+                    "original_target_response_yaw_deg": math.degrees(baseline_target_yaw),
+                    "edited_target_response_yaw_deg": math.degrees(edited_target_yaw),
                     "original_target_roi_return_count": baseline_target_return_count,
                     "edited_target_roi_return_count": edited_target_return_count,
                 },
@@ -596,18 +850,24 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
             "coordinate_frame": "nre_lidar_sensor_local_end_of_spin",
             "axis_convention": "x_forward_y_right_z_up",
             "server_transform": "pc_nre transformed by T_nre_sensor_end before LidarRenderReturn",
-            "sensor_to_bev_axes": SENSOR_TO_BEV_AXES.reshape(-1).tolist(),
-            "sensor_to_bev_projection": "screen-right=+response_y, screen-up=+response_x",
-            "target_annotation": "outlined target pose footprint with only real returns inside the ROI highlighted",
+            "response_to_artifact_axes": RESPONSE_TO_ARTIFACT_AXES.reshape(-1).tolist(),
+            "projection": "camera_front perspective using camera intrinsics",
+            "camera_reference_timestamp": "RGB wire midpoint; LiDAR points remain in end-of-spin coordinates",
+            "target_annotation": "oriented target cuboid projected into camera_front",
+            "roi_semantics": "oriented geometry ROI; highlighted returns are not actor-owned labels",
             "server_implementation": "nre/render/render.py: pc_sensor = transform_point_cloud(pc_nre, T_nre_sensor_end)",
         },
         "rgb_lidar_timestamp_alignment_max_us": 0,
+        "target_delta_m": target_delta,
+        "target_delta_frame": target_delta_frame,
         "rejected_source_timestamp_count": len(rejected),
         "playback_only": True,
         "max_interpolation_gap_us": int(args.max_interpolation_gap_us),
         "limitations": [
             "V04 is a uniform 20 FPS playback baseline over approximately 20 Hz live render windows.",
             "Actor and rig gaps up to the declared playback-only interpolation limit are interpolated.",
+            "RGB is sampled at each logical window midpoint; LiDAR is projected from its end-of-spin frame into that camera pose.",
+            "The highlighted LiDAR ROI is geometric evidence, not per-point actor ownership.",
             "No source LiDAR, static point-cloud copying, optical flow, or synthetic points were used.",
         ],
     }
