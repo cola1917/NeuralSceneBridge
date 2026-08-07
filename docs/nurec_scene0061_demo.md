@@ -86,15 +86,13 @@ manifest hash and artifact identity are part of every evidence record.
 ## V04 RGB/LiDAR Diagnostic Visualization
 
 V04 is the final front-camera and LiDAR comparison view. The formal
-`render_multimodal_alignment_video.py` path performs an A/A control request and
-an edited request on the same logical render windows, then removes
-control-only changes from the LiDAR voxel difference. The `v2` and `v2b`
-variants used for the local final playback render only baseline and edited
-requests, so their difference overlay is a visual diagnostic and is not
-A/A-controlled.
+`render_multimodal_alignment_video_v2b.py` path is the canonical public capture.
+It renders baseline and edited requests on the same logical render windows.
+Because it does not capture an A/A repeat, its difference overlay is an
+open-loop visual diagnostic, not an A/A-controlled measurement.
 
 ```bash
-python3 scripts/render_multimodal_alignment_video.py \
+python3 scripts/render_multimodal_alignment_video_v2b.py \
   --server-address 127.0.0.1:46443 \
   --output-dir outputs/nurec_scene0061_final/multimodal_20fps \
   --overwrite

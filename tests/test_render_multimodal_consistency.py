@@ -8,9 +8,9 @@ _HAS_CV2 = importlib.util.find_spec("cv2") is not None
 
 
 @unittest.skipUnless(_HAS_CV2, "requires OpenCV")
-class RenderMultimodalConsistencyTests(unittest.TestCase):
+class RenderMultimodalDiagnosticTests(unittest.TestCase):
     def test_v04_target_pose_maps_artifact_right_forward_to_response_forward_right(self):
-        from scripts.render_multimodal_alignment_video import (
+        from scripts.render_multimodal_alignment_video_v2b import (
             TARGET_TRACK_ID,
             _target_response_position,
         )
@@ -43,7 +43,7 @@ class RenderMultimodalConsistencyTests(unittest.TestCase):
         np.testing.assert_allclose(position, [10.0, 2.0, 1.0])
 
     def test_v04_target_roi_selects_only_real_points_in_footprint(self):
-        from scripts.render_multimodal_alignment_video import _target_roi
+        from scripts.render_multimodal_alignment_video_v2b import _target_roi
 
         points = np.asarray(
             [[10.0, -2.0, 0.0], [12.9, -0.6, 1.0], [13.1, -2.0, 0.0], [10.0, -0.4, 0.0]],
@@ -53,7 +53,7 @@ class RenderMultimodalConsistencyTests(unittest.TestCase):
         self.assertEqual(selected.tolist(), [True, True, False, False])
 
     def test_v04_target_roi_rotates_with_target_yaw(self):
-        from scripts.render_multimodal_alignment_video import _target_roi
+        from scripts.render_multimodal_alignment_video_v2b import _target_roi
 
         points = np.asarray(
             [[12.0, 0.0, 0.0], [10.0, 2.9, 0.0], [10.0, 1.4, 0.0], [8.0, 0.0, 0.0]],
@@ -67,43 +67,22 @@ class RenderMultimodalConsistencyTests(unittest.TestCase):
         self.assertEqual(selected.tolist(), [False, True, True, False])
 
     def test_v04_response_to_artifact_axes_swaps_horizontal_basis(self):
-        from scripts.render_multimodal_alignment_video import RESPONSE_TO_ARTIFACT_AXES
+        from scripts.render_multimodal_alignment_video_v2b import RESPONSE_TO_ARTIFACT_AXES
 
         np.testing.assert_array_equal(
             RESPONSE_TO_ARTIFACT_AXES,
             np.asarray([[0.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]]),
         )
 
-    def test_v04_voxel_difference_removes_a_a_control_change(self):
-        from scripts.render_multimodal_alignment_video import _voxel_difference
+    def test_v04_cell_keys_use_stable_voxel_grid(self):
+        from scripts.render_multimodal_alignment_video_v2b import VOXEL_M, _cell_keys
 
-        baseline = np.asarray(
-            [[1.01, 2.01, 0.0, 0.5], [4.01, 5.01, 0.0, 0.4]],
+        points = np.asarray(
+            [[1.01, 2.01, 0.0, 0.5], [1.09, 2.09, 0.09, 0.4], [1.11, 2.01, 0.0, 0.4]],
             dtype=np.float32,
         )
-        control = np.asarray(
-            [[1.01, 2.01, 0.0, 0.5], [4.11, 5.01, 0.0, 0.4]],
-            dtype=np.float32,
-        )
-        edited = np.asarray(
-            [[1.01, 2.01, 0.0, 0.5], [4.21, 5.01, 0.0, 0.4]],
-            dtype=np.float32,
-        )
-        difference = _voxel_difference(baseline, control, edited)
-        self.assertEqual(len(difference["control_added"]), 1)
-        self.assertEqual(len(difference["signal_added"]), 1)
-        self.assertEqual(len(difference["signal_removed"]), 0)
-
-    def test_v04_rgb_difference_uses_repeat_control_threshold(self):
-        from scripts.render_multimodal_alignment_video import _rgb_difference
-
-        baseline = np.zeros((4, 4, 3), dtype=np.uint8)
-        control = baseline.copy()
-        edited = baseline.copy()
-        edited[1, 2] = (30, 30, 30)
-        difference = _rgb_difference(baseline, control, edited)
-        self.assertEqual(difference["signal_pixel_count"], 1)
-        self.assertEqual(difference["control_mean_abs_error"], 0.0)
+        cells = _cell_keys(points)
+        self.assertEqual(cells, {(10, 20, 0), (int(np.floor(1.11 / VOXEL_M)), 20, 0)})
 
 
 if __name__ == "__main__":

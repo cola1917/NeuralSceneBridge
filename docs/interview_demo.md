@@ -158,10 +158,10 @@ and MP4 files are ignored or local-only.
 - No camera intrinsic, FOV, focal-length, or principal-point edits.
 - V02 edits only `c1958768d48640948f6053d04cffd35b`.
 - V03 edits only camera extrinsic pose within the checked-in bounds.
-- The formal V04 script uses a live RGB/LiDAR A/A-controlled capture for
-  counterfactual response comparison, but it does not claim per-point ownership
-  or strict rigid world registration. The `v2`/`v2b` visual variants in the
-  final playback directory do not include the A/A control.
+- The canonical V04 `render_multimodal_alignment_video_v2b.py` capture uses
+  baseline-versus-edited RGB/LiDAR responses in the same logical windows. It
+  does not include an A/A repeat control, and it does not claim per-point
+  ownership or strict rigid world registration.
 - RGB/LiDAR pairing is by logical render window: RGB uses the window midpoint
   and LiDAR uses the end-of-spin reference. This is not physical timestamp
   alignment.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build an audited 20 FPS RGB/NuRec-LiDAR alignment video for scene-0061."""
+"""Build the canonical audited 20 FPS RGB/NuRec-LiDAR diagnostic for scene-0061."""
 
 from __future__ import annotations
 

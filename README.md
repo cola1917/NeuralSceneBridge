@@ -129,15 +129,13 @@ finite Chamfer/ray-drop measurements.
 ## V04 RGB/LiDAR Diagnostic Video
 
 V04 is a renderer-level multimodal visualization, not an alignment pass. The
-formal script below renders baseline, an A/A control, and edited RGB/LiDAR
-responses on the same logical windows. The newer `v2` and `v2b` scripts produce
-the more readable baseline-versus-edited view used by the local final playback
-directory, but they do not capture an A/A control and must be labeled as visual
-diagnostics. None of these variants proves per-point actor ownership or rigid
-target registration.
+canonical `v2b` script renders baseline and edited RGB/LiDAR responses on the
+same logical windows. It does not capture an A/A repeat control, so the result
+is an open-loop renderer diagnostic rather than an A/A-controlled comparison.
+The view does not prove per-point actor ownership or rigid target registration.
 
 ```bash
-python3 scripts/render_multimodal_alignment_video.py \
+python3 scripts/render_multimodal_alignment_video_v2b.py \
   --server-address 127.0.0.1:46443 \
   --output-dir outputs/nurec_scene0061_final/multimodal_20fps \
   --overwrite
@@ -164,8 +162,8 @@ outputs/nurec_scene0061_demo/<case-id>/
 
 outputs/nurec_scene0061_final/multimodal_20fps/
   frames/*.jpg                 # final 1600x900 V04 frames
-  rgb/{original,repeat,edited}.jpg
-  lidar/{original,repeat,edited}.xyzi.bin
+  rgb/{original,edited}.jpg
+  lidar/{original,edited}.xyzi.bin
   frames.jsonl
   evidence.json
   V04_multimodal_alignment_20fps.mp4
