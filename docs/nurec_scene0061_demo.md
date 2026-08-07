@@ -1,9 +1,11 @@
 # scene-0061 NuRec Interview Demo
 
-This demo is a renderer-level evidence path for the locked `scene-0061`
-reconstruction. It proves that the same USDZ can be replayed, edited through
-the dynamic-object RPC, and rendered under a bounded camera-pose sweep. It is
-not a CARLA closed-loop acceptance result.
+This demo is the renderer-level handoff for the locked `scene-0061`
+reconstruction. It proves that the pinned USDZ can be replayed, edited through
+the dynamic-object RPC, and rendered under a bounded camera-pose sweep for
+downstream simulation plumbing. It is open-loop and is not a CARLA
+closed-loop acceptance result. The reconstructed LiDAR path currently remains
+diagnostic; see [`docs/downstream_simulation_handoff.md`](downstream_simulation_handoff.md).
 
 ## Immutable Inputs
 
@@ -81,12 +83,15 @@ Use `--probe-only` to verify the V02 A/A/B or V03 camera probes without
 encoding a sequence. Never point a case at a different training run: the
 manifest hash and artifact identity are part of every evidence record.
 
-## V04 RGB/LiDAR Consistency Visualization
+## V04 RGB/LiDAR Diagnostic Visualization
 
-V04 is the final front-camera and LiDAR comparison. It performs an A/A control
-request and an edited request on the same logical render windows, removes
-control-only changes from the LiDAR voxel difference, and writes the fixed
-1600x900 comparison video with its frame evidence.
+V04 is the final front-camera and LiDAR comparison view. The formal
+`render_multimodal_alignment_video.py` path performs an A/A control request and
+an edited request on the same logical render windows, then removes
+control-only changes from the LiDAR voxel difference. The `v2` and `v2b`
+variants used for the local final playback render only baseline and edited
+requests, so their difference overlay is a visual diagnostic and is not
+A/A-controlled.
 
 ```bash
 python3 scripts/render_multimodal_alignment_video.py \
@@ -98,7 +103,27 @@ python3 scripts/render_multimodal_alignment_video.py \
 The evidence distinguishes RGB response changes and LiDAR response changes,
 but the metadata center and projected geometry are references rather than
 per-point ownership labels. The result therefore documents counterfactual
-cross-modal response, not a strict rigid or pointwise registration proof.
+renderer response, not a strict rigid or pointwise registration proof. RGB is
+sampled at the logical window midpoint while LiDAR remains referenced to the
+end of its spin; the evidence must not report that as a zero-microsecond
+physical timestamp alignment.
+
+The ClosedLoopBench investigation found that the NRE 26.04 dynamic LiDAR
+renderer can omit vehicles at their true positions and emit fixed scattered
+returns instead. V04 is therefore useful for exposing the failure, but it does
+not make the reconstructed LiDAR suitable for perception-driven simulation.
+
+## Downstream Simulation Boundary
+
+`NeuralSceneBridge` owns reconstruction artifacts, identity gates, sensor RPC
+requests, and open-loop evidence. `ClosedLoopBench` owns the synchronous CARLA
+clock, ego/actor execution, observation delivery, and closed-loop evaluation.
+Keep raw CARLA LiDAR and reconstructed NuRec LiDAR as separate provenance
+routes when comparing them. Do not combine a successful RGB replay with the
+current NuRec LiDAR and call the resulting stream physically aligned.
+
+The current handoff status and next reconstruction gate are recorded in
+[`docs/downstream_simulation_handoff.md`](downstream_simulation_handoff.md).
 
 ## Build The Quality Report
 

@@ -108,7 +108,10 @@ def sampled_quality(path: Path, sample_step: int = 10) -> dict[str, float | int]
 
 def source_policy(case_id: str, fps: int, harmonizer: bool) -> str:
     if case_id == "V04":
-        return "385 approximately 20 Hz synchronized live RGB/LiDAR render windows"
+        return (
+            "385 approximately 20 Hz live RGB/LiDAR render windows paired by logical "
+            "window; RGB midpoint and LiDAR end-of-spin reference"
+        )
     suffix = " with NVIDIA Harmonizer post-processing" if harmonizer else ""
     return f"independent uniform {fps} Hz NuRec timestamp requests{suffix}"
 
@@ -170,14 +173,16 @@ def main() -> int:
     if not v04_evidence.is_file():
         raise RuntimeError("V04 evidence.json is missing")
     v04 = json.loads(v04_evidence.read_text(encoding="utf-8"))
-    if v04.get("status") != "passed" or v04.get("rgb_lidar_timestamp_alignment_max_us") != 0:
-        raise RuntimeError("V04 evidence does not prove RGB/LiDAR alignment")
+    if v04.get("status") != "passed" or not v04.get("evidence_classification"):
+        raise RuntimeError("V04 evidence is missing a completed renderer classification")
     v04_entry = next(item for item in entries if item["case_id"] == "V04")
     v04_entry["timestamp_range_us"] = v04["timestamp_range_us"]
     v04_entry["limitations"] = v04["limitations"]
+    v04_entry["evidence_classification"] = v04["evidence_classification"]
+    v04_entry["control_mode"] = v04.get("control_mode")
 
     manifest = {
-        "schema_version": "nsb.scene0061-final-video-manifest.v2",
+        "schema_version": "nsb.scene0061-final-video-manifest.v3",
         "generated_at": generated_at,
         "status": "completed",
         "video_count": len(entries),
@@ -185,13 +190,16 @@ def main() -> int:
         "videos": entries,
     }
     report = {
-        "schema_version": "nsb.scene0061-final-quality.v2",
+        "schema_version": "nsb.scene0061-final-quality.v3",
         "generated_at": generated_at,
         "status": "passed",
         "video_count": len(entries),
         "videos": quality,
         "V04": {
-            "rgb_lidar_timestamp_alignment_max_us": 0,
+            "evidence_classification": v04["evidence_classification"],
+            "control_mode": v04.get("control_mode"),
+            "rgb_lidar_timestamp_alignment_max_us": None,
+            "rgb_lidar_pairing": v04.get("rgb_lidar_pairing"),
             "evidence": "outputs/nurec_scene0061_final/multimodal_20fps/evidence.json",
         },
         "limitations": [

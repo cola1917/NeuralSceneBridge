@@ -1,10 +1,16 @@
 # NeuralSceneBridge
 
-NeuralSceneBridge is an independent NuRec/NRE neural-scene reconstruction and
-editable-rendering demo. The interview deliverable is intentionally narrower
-than an autonomous-driving stack: it uses NVIDIA `SensorsimService` gRPC
-requests to replay a trained USDZ, edit one dynamic actor, and sweep the
-camera pose. It does not start or control CARLA.
+NeuralSceneBridge is a reconstruction bridge for downstream simulation. It
+turns a recorded scene, sensor streams, and dynamic actor tracks into a pinned
+NuRec/USDZ artifact, then serves that artifact through NVIDIA
+`SensorsimService` for reproducible RGB/LiDAR replay and controlled edits.
+
+The scene-0061 interview delivery is intentionally open-loop. It proves the
+reconstruction can be replayed, a dynamic actor can be edited in the RGB path,
+and camera pose requests can be probed. It does not by itself prove physical
+RGB/LiDAR alignment, perception-grade reconstructed LiDAR, or CARLA
+closed-loop behavior. The downstream ownership boundary is documented in
+[`docs/downstream_simulation_handoff.md`](docs/downstream_simulation_handoff.md).
 
 ## Requirements
 
@@ -25,6 +31,22 @@ are local runtime assets. They are deliberately not stored in Git. Configure
 their paths in [demo/scene0061/manifest.json](demo/scene0061/manifest.json).
 The checked-in manifest records the canonical USDZ identity and the target
 track `c1958768d48640948f6053d04cffd35b`.
+
+## Reconstruction To Simulation
+
+The handoff is deliberately split into two products:
+
+| Layer | This repository | Downstream consumer |
+| --- | --- | --- |
+| Reconstruction | USDZ artifact, actor tracks, sensor poses, and identity gates | `ClosedLoopBench` loads the pinned artifact |
+| Renderer contract | `render_rgb` / `render_lidar`, logical windows, frames, and hashes | Observation adapter and agent runtime |
+| Simulation loop | Fixed-trajectory replay and counterfactual probes | CARLA clock, ego control, collision state, and evaluation |
+
+The current artifact is ready for renderer-level RGB studies and integration
+plumbing. Its reconstructed LiDAR is kept as a diagnostic input because the
+NRE 26.04 dynamic LiDAR path currently fails the downstream actor-aware check.
+See [`docs/downstream_simulation_handoff.md`](docs/downstream_simulation_handoff.md)
+for the exact boundary and evidence.
 
 ## Verify The Artifact
 
@@ -104,13 +126,14 @@ formally passing only when all three cases have zero dropped frames, complete
 metadata, valid videos, passed probes, matching immutable identities, and the
 finite Chamfer/ray-drop measurements.
 
-## V04 RGB/LiDAR Consistency Video
+## V04 RGB/LiDAR Diagnostic Video
 
-V04 is the final multimodal visualization. It renders baseline, A/A control,
-and edited RGB/LiDAR responses on the same logical windows. The video keeps the
-front-camera comparison on top and shows a fixed-scale LiDAR BEV difference
-overlay below. A/A-controlled voxel and pixel differences are recorded in
-`evidence.json`; the result does not claim per-point actor ownership or rigid
+V04 is a renderer-level multimodal visualization, not an alignment pass. The
+formal script below renders baseline, an A/A control, and edited RGB/LiDAR
+responses on the same logical windows. The newer `v2` and `v2b` scripts produce
+the more readable baseline-versus-edited view used by the local final playback
+directory, but they do not capture an A/A control and must be labeled as visual
+diagnostics. None of these variants proves per-point actor ownership or rigid
 target registration.
 
 ```bash
@@ -119,6 +142,11 @@ python3 scripts/render_multimodal_alignment_video.py \
   --output-dir outputs/nurec_scene0061_final/multimodal_20fps \
   --overwrite
 ```
+
+The V04 timestamp fields describe logical-window pairing: RGB is sampled at
+the window midpoint and LiDAR is referenced to the end of its spin. A metadata
+value of `null` for physical timestamp alignment is intentional; it does not
+mean that the two modalities were measured at exactly the same physical time.
 
 ## Output Layout
 
@@ -143,6 +171,11 @@ outputs/nurec_scene0061_final/multimodal_20fps/
   V04_multimodal_alignment_20fps.mp4
 ```
 
+The local final delivery also contains a retained previous V04 diagnostic
+variant named `V04_multimodal_alignment_20fps_bak.mp4`. The main V04 video and
+its evidence are playback artifacts, not a claim that reconstructed LiDAR is
+ready for downstream perception.
+
 The `outputs/` tree is ignored by Git. Do not add USDZ, checkpoint, dataset,
 raw frames, or MP4 files to the repository.
 
@@ -154,6 +187,8 @@ bash scripts/run_local_checks.sh
 ```
 
 This demo does not claim CARLA closed-loop behavior, self-vehicle braking,
-TTC, collision, route metrics, or unverified RGB/LiDAR world consistency.
-LiDAR evidence is optional and must be captured and validated separately before
-it is mentioned in a quality claim.
+TTC, collision, route metrics, physical RGB/LiDAR world consistency, or
+perception-grade reconstructed LiDAR. Training-time LiDAR supervision and a
+non-empty `render_lidar` response are necessary checks, but neither is enough
+to establish actor/world consistency. That gate must be completed by the
+downstream ClosedLoopBench evaluation.

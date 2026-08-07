@@ -220,3 +220,11 @@ fail-closed quality report are documented in
 [`docs/nurec_scene0061_demo.md`](nurec_scene0061_demo.md). Those runbooks keep
 the USDZ/checkpoint identity bound to every capture and explicitly separate
 SensorsimService evidence from CARLA closed-loop acceptance.
+
+For the downstream simulation handoff, read
+[`docs/downstream_simulation_handoff.md`](downstream_simulation_handoff.md).
+The current scene is a usable renderer-level reconstruction for RGB replay and
+integration plumbing, but the live NuRec 26.04 dynamic LiDAR path is not yet
+validated as actor/world-consistent. Training LiDAR supervision, a non-empty
+LiDAR response, and a successful capture gate must not be promoted to a
+perception or closed-loop claim without the downstream actor-aware evaluation.

@@ -197,8 +197,12 @@ def blocked(case_id: str, expected_path: str, category: str, reason: str) -> dic
 def validate_v04(rows: list[dict[str, Any]]) -> dict[str, Any]:
     original_counts, edited_counts, latencies = [], [], []
     for row in rows:
-        if row["rgb_lidar_timestamp_delta_us"] != 0:
-            raise RuntimeError(f"V04 timestamp misalignment at frame {row['frame_index']}")
+        if row.get("rgb_lidar_timestamp_delta_us") is not None:
+            raise RuntimeError(
+                f"V04 uses a legacy physical timestamp delta at frame {row['frame_index']}"
+            )
+        if row.get("rgb_lidar_pairing") != "same logical render window; RGB midpoint, LiDAR end-of-spin":
+            raise RuntimeError(f"V04 logical-window pairing is missing at frame {row['frame_index']}")
         for mode in ("original", "edited"):
             rgb_path = Path(row["rgb"][f"{mode}_path"])
             if sha256(rgb_path) != row["rgb"][f"{mode}_sha256"]:
@@ -213,7 +217,12 @@ def validate_v04(rows: list[dict[str, Any]]) -> dict[str, Any]:
         edited_counts.append(row["lidar"]["edited_point_count"])
         latencies.append(row["rpc_latency_ms"])
     return {
-        "status": "passed", "frame_count": len(rows), "rgb_lidar_timestamp_alignment_max_us": 0,
+        "status": "passed",
+        "frame_count": len(rows),
+        "evidence_classification": "open_loop_renderer_diagnostic",
+        "control_mode": "none",
+        "rgb_lidar_pairing": "same logical render window; RGB midpoint, LiDAR end-of-spin",
+        "rgb_lidar_timestamp_alignment_max_us": None,
         "original_lidar_point_count": percentiles(original_counts),
         "edited_lidar_point_count": percentiles(edited_counts),
         "frames_with_changed_lidar_hash": sum(

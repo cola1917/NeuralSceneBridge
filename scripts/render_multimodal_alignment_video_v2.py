@@ -802,7 +802,8 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                     "original_target_roi_return_count": baseline_target_return_count,
                     "edited_target_roi_return_count": edited_target_return_count,
                 },
-                "rgb_lidar_timestamp_delta_us": 0,
+                "rgb_lidar_timestamp_delta_us": None,
+                "rgb_lidar_pairing": "same logical render window; RGB midpoint, LiDAR end-of-spin",
                 "rpc_latency_ms": (time.perf_counter() - started) * 1000.0,
             }
             records.append(record)
@@ -830,8 +831,10 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
         20.0,
     )
     result = {
-        "schema_version": "nsb.v04-multimodal-alignment.v1",
+        "schema_version": "nsb.v04-multimodal-diagnostic.v2",
         "status": "passed",
+        "evidence_classification": "open_loop_renderer_diagnostic",
+        "control_mode": "none",
         "video": str(video_path),
         "video_sha256": sha256_file(video_path),
         "frame_count": len(records),
@@ -857,7 +860,8 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
             "roi_semantics": "oriented geometry ROI; highlighted returns are not actor-owned labels",
             "server_implementation": "nre/render/render.py: pc_sensor = transform_point_cloud(pc_nre, T_nre_sensor_end)",
         },
-        "rgb_lidar_timestamp_alignment_max_us": 0,
+        "rgb_lidar_timestamp_alignment_max_us": None,
+        "rgb_lidar_pairing": "same logical render window; RGB midpoint, LiDAR end-of-spin",
         "target_delta_m": target_delta,
         "target_delta_frame": target_delta_frame,
         "rejected_source_timestamp_count": len(rejected),
@@ -868,6 +872,8 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
             "Actor and rig gaps up to the declared playback-only interpolation limit are interpolated.",
             "RGB is sampled at each logical window midpoint; LiDAR is projected from its end-of-spin frame into that camera pose.",
             "The highlighted LiDAR ROI is geometric evidence, not per-point actor ownership.",
+            "This variant renders baseline and edited requests only; no A/A repeat control was captured.",
+            "RGB/LiDAR timestamp fields describe logical-window pairing, not zero-microsecond physical alignment.",
             "No source LiDAR, static point-cloud copying, optical flow, or synthetic points were used.",
         ],
     }

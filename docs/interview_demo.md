@@ -1,8 +1,10 @@
 # Interview Demo Runbook
 
-This runbook is the reproducible handoff for the scene-0061 NuRec interview
-demo. It covers only NVIDIA NRE/SensorsimService rendering. CARLA is neither
-started nor used as a control loop.
+This runbook is the reproducible handoff for the scene-0061 NuRec
+reconstruction demo. It covers NVIDIA NRE/SensorsimService rendering and the
+renderer contract that a downstream simulator can consume. CARLA is neither
+started nor used as a control loop in this repository; the downstream boundary
+is described in [`docs/downstream_simulation_handoff.md`](downstream_simulation_handoff.md).
 
 ## 1. Check The Canonical Identity
 
@@ -156,6 +158,12 @@ and MP4 files are ignored or local-only.
 - No camera intrinsic, FOV, focal-length, or principal-point edits.
 - V02 edits only `c1958768d48640948f6053d04cffd35b`.
 - V03 edits only camera extrinsic pose within the checked-in bounds.
-- V04 uses a live RGB/LiDAR A/A-controlled capture for counterfactual response
-  comparison, but it does not claim per-point ownership or strict rigid
-  world registration.
+- The formal V04 script uses a live RGB/LiDAR A/A-controlled capture for
+  counterfactual response comparison, but it does not claim per-point ownership
+  or strict rigid world registration. The `v2`/`v2b` visual variants in the
+  final playback directory do not include the A/A control.
+- RGB/LiDAR pairing is by logical render window: RGB uses the window midpoint
+  and LiDAR uses the end-of-spin reference. This is not physical timestamp
+  alignment.
+- The current NuRec LiDAR output is not perception-grade or closed-loop-ready;
+  ClosedLoopBench's actor-aware LiDAR gate remains the acceptance boundary.

@@ -1150,7 +1150,8 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
                     "lidar_delta_rgb_signal_hit_ratio": projected_overlap["rgb_signal_hit_ratio"],
                     "reference_geometry": "projected controllable-track cuboid; not point ownership",
                 },
-                "rgb_lidar_timestamp_delta_us": 0,
+                "rgb_lidar_timestamp_delta_us": None,
+                "rgb_lidar_pairing": "same logical render window; RGB midpoint, LiDAR end-of-spin",
                 "rpc_latency_ms": (time.perf_counter() - started) * 1000.0,
             }
             records.append(record)
@@ -1178,8 +1179,10 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
         20.0,
     )
     result = {
-        "schema_version": "nsb.v04-multimodal-consistency.v2",
+        "schema_version": "nsb.v04-multimodal-consistency.v3",
         "status": "passed",
+        "evidence_classification": "open_loop_renderer_diagnostic",
+        "control_mode": "a_a_controlled",
         "video": str(video_path),
         "video_sha256": sha256_file(video_path),
         "frame_count": len(records),
@@ -1211,9 +1214,10 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
             "lidar_difference_voxel_size_m": LIDAR_DIFF_VOXEL_M,
             "rgb_change_visual": "green contour is RGB A/B signal projected on the camera-plane LiDAR panels",
             "lidar_change_visual": "blue is baseline-only signal; yellow is edited-only signal",
-            "claim": "counterfactual geometric cross-modal consistency, not per-point actor ownership",
+            "claim": "A/A-controlled counterfactual response comparison; not physical cross-modal alignment or per-point actor ownership",
         },
-        "rgb_lidar_timestamp_alignment_max_us": 0,
+        "rgb_lidar_timestamp_alignment_max_us": None,
+        "rgb_lidar_pairing": "same logical render window; RGB midpoint, LiDAR end-of-spin",
         "target_delta_m": target_delta,
         "target_delta_frame": target_delta_frame,
         "rejected_source_timestamp_count": len(rejected),
@@ -1225,6 +1229,7 @@ def render(args: argparse.Namespace) -> dict[str, Any]:
             "RGB is sampled at each logical window midpoint; LiDAR is projected from its end-of-spin frame into that camera pose.",
             "The reference target geometry is derived from the controllable track pose; it is not a per-point ownership label.",
             "RGB/LiDAR differences are paired A/A-controlled changes; occlusion and ray sampling can produce modality-specific differences.",
+            "RGB/LiDAR timestamp fields describe logical-window pairing, not zero-microsecond physical alignment.",
             "No source LiDAR, static point-cloud copying, optical flow, or synthetic points were used.",
         ],
     }
